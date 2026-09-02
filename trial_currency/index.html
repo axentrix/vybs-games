@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trial Currency</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #rive-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 393px;
+    max-height: 852px;
+  }
+
+  #status {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    color: #fff;
+    font: 12px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<canvas id="rive-canvas" width="393" height="852"></canvas>
+<div id="status">Loading…</div>
+
+<script src="https://unpkg.com/@rive-app/canvas@2.39.0"></script>
+<script>
+  // The .riv file references this image out-of-band instead of embedding it,
+  // so it has to be supplied manually via assetLoader.
+  const IMAGE_ASSET_SRC = "vxp.png";
+
+  const canvas = document.getElementById("rive-canvas");
+  const statusEl = document.getElementById("status");
+
+  const riveInstance = new rive.Rive({
+    src: "trial_currency.riv",
+    canvas: canvas,
+    autoplay: true,
+    layout: new rive.Layout({
+      fit: rive.Fit.Contain,
+      alignment: rive.Alignment.Center,
+    }),
+    assetLoader: (asset, bytes) => {
+      console.log("[rive] asset found:", {
+        name: asset.name,
+        fileExtension: asset.fileExtension,
+        cdnUuid: asset.cdnUuid,
+        isImage: asset.isImage,
+        isFont: asset.isFont,
+        isAudio: asset.isAudio,
+        embeddedByteLength: bytes.length,
+      });
+
+      // Force-load our local image for every image asset, even if the .riv
+      // shipped a placeholder (embedded low-res bytes or a Rive-CDN cdnUuid) —
+      // otherwise that placeholder wins over the real vxp.png.
+      if (asset.isImage) {
+        fetch(IMAGE_ASSET_SRC)
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`fetch failed: ${res.status} ${res.statusText}`);
+            }
+            return res.arrayBuffer();
+          })
+          .then(async (buffer) => {
+            const image = await rive.decodeImage(new Uint8Array(buffer));
+            asset.setRenderImage(image);
+            // Release our reference once the engine has taken ownership.
+            image.unref();
+            console.log(`[rive] "${IMAGE_ASSET_SRC}" applied to asset "${asset.name}"`);
+          })
+          .catch((err) => {
+            console.error(`[rive] failed to load "${IMAGE_ASSET_SRC}" for asset "${asset.name}":`, err);
+          });
+        return true;
+      }
+
+      return false;
+    },
+    onLoad: () => {
+      console.log("Rive loaded");
+      riveInstance.resizeDrawingSurfaceToCanvas();
+
+      // Get CurrencyVM from the .riv file
+      const currencyVM = riveInstance.viewModelByName?.("CurrencyVM");
+
+      if (!currencyVM) {
+        console.warn("CurrencyVM not found");
+      } else {
+        console.log("CurrencyVM found:", currencyVM);
+
+        // Create/default instance of the ViewModel
+        const currencyInstance =
+          currencyVM.defaultInstance?.() ||
+          currencyVM.instance?.() ||
+          currencyVM.createInstance?.();
+
+        console.log("CurrencyVM instance:", currencyInstance);
+
+        // Bind it to the Rive animation
+        if (currencyInstance && riveInstance.bindViewModelInstance) {
+          riveInstance.bindViewModelInstance(currencyInstance);
+          console.log("CurrencyVM bound");
+        }
+
+        // Helper functions
+        function setNumber(name, value) {
+          try {
+            const prop = currencyInstance.number(name);
+            prop.value = value;
+            console.log(name, value);
+          } catch (err) {
+            console.warn("Could not set number:", name, err);
+          }
+        }
+
+        function fireTrigger(name) {
+          try {
+            const trigger = currencyInstance.trigger(name);
+            trigger.fire();
+            console.log("Fired:", name);
+          } catch (err) {
+            console.warn("Could not fire trigger:", name, err);
+          }
+        }
+
+        // Test values in Rive artboard coordinates
+        setNumber("startX", 200);
+        setNumber("startY", 650);
+        setNumber("endX", 200);
+        setNumber("endY", 120);
+        setNumber("confettiCount", 24);
+        setNumber("confettiSeed", Date.now() % 99999);
+
+        setTimeout(() => {
+          fireTrigger("confettiTrigger");
+        }, 500);
+      }
+
+      statusEl.textContent = "Animation loaded";
+      setTimeout(() => {
+        statusEl.style.display = "none";
+      }, 1200);
+    },
+    onLoadError: (err) => {
+      console.error("[rive] failed to load .riv file:", err);
+    },
+  });
+
+  window.addEventListener("resize", () => {
+    riveInstance.resizeDrawingSurfaceToCanvas();
+  });
+</script>
+</body>
+</html>

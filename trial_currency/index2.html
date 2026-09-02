@@ -1,0 +1,269 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trail Currency Rive Animation</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: Arial, sans-serif;
+    }
+
+    .stage {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at center, #242424 0%, #101010 70%);
+    }
+
+    canvas {
+      width: 30vw;
+      height: 100vh;
+      display: block;
+    }
+
+    .status {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 10;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="stage"> <canvas id="riveCanvas"></canvas>
+    <div class="status" id="status">Loading Rive animation…</div>
+  </main>
+<script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+<script>
+const canvas = document.getElementById("riveCanvas");
+const statusEl = document.getElementById("status");
+
+let riveAnimation;
+
+// Keep Rive image references alive
+const loadedImages = [];
+
+function resizeCanvas() {
+  if (riveAnimation) {
+    riveAnimation.resizeDrawingSurfaceToCanvas();
+  }
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+riveAnimation = new rive.Rive({
+  src: "./trial_currency.riv",
+  canvas: canvas,
+
+  autoplay: true,
+
+  artboard: "currency",
+
+  stateMachine: "State Machine 1",
+
+  autoBind: true,
+
+  assetLoader: (asset, bytes) => {
+    console.log(
+      "ASSET REQUEST:",
+      asset.name,
+      "image:",
+      asset.isImage,
+      asset
+    );
+
+    if (!asset.isImage) {
+      return false;
+    }
+
+    // SMALLER IMAGE
+    // Change w_64 to w_40, w_80, w_100, etc.
+    const imageUrl =
+      "https://res.cloudinary.com/dvinuqxwy/image/upload/w_64,c_scale/v1781257577/trail_currency_firldh.png";
+
+    fetch(imageUrl, {
+      cache: "no-store"
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(
+            `Image HTTP ${response.status}`
+          );
+        }
+
+        console.log(
+          "IMAGE FETCHED:",
+          response.status,
+          response.url
+        );
+
+        return response.arrayBuffer();
+      })
+
+      .then(buffer => {
+        console.log(
+          "IMAGE BYTES:",
+          buffer.byteLength
+        );
+
+        return rive.decodeImage(
+          new Uint8Array(buffer)
+        );
+      })
+
+      .then(riveImage => {
+        console.log(
+          "DECODED IMAGE:",
+          riveImage
+        );
+
+        asset.setRenderImage(riveImage);
+
+        // Keep image alive
+        loadedImages.push(riveImage);
+
+        console.log(
+          "IMAGE ASSIGNED TO:",
+          asset.name
+        );
+      })
+
+      .catch(error => {
+        console.error(
+          "IMAGE LOAD ERROR:",
+          error
+        );
+      });
+
+    return true;
+  },
+
+  layout: new rive.Layout({
+    fit: rive.Fit.Cover,
+    alignment: rive.Alignment.Center
+  }),
+
+  onLoad: () => {
+    console.log("RIVE LOADED");
+
+    riveAnimation.resizeDrawingSurfaceToCanvas();
+
+    const vm = riveAnimation.viewModelInstance;
+
+    console.log(
+      "BOUND VM:",
+      vm
+    );
+
+    if (!vm) {
+      console.error(
+        "NO VIEW MODEL INSTANCE BOUND"
+      );
+
+      return;
+    }
+
+    console.log(
+      "VM NAME:",
+      vm.viewModelName
+    );
+
+    console.log(
+      "VM PROPERTIES:",
+      vm.properties
+    );
+
+    function setNumber(name, value) {
+      const property = vm.number(name);
+
+      if (!property) {
+        console.warn(
+          "NUMBER NOT FOUND:",
+          name
+        );
+
+        return;
+      }
+
+      property.value = value;
+
+      console.log(
+        name,
+        "=",
+        property.value
+      );
+    }
+
+    setNumber("startX", 200);
+    setNumber("startY", 650);
+
+    setNumber("endX", 200);
+    setNumber("endY", 120);
+
+    setNumber("confettiCount", 24);
+
+    setNumber(
+      "confettiSeed",
+      Math.floor(Math.random() * 100000)
+    );
+
+    const trigger =
+      vm.trigger("confettiTrigger");
+
+    console.log(
+      "CONFETTI TRIGGER:",
+      trigger
+    );
+
+    console.log(
+      "TRIGGER KEYS:",
+      trigger
+        ? Object.getOwnPropertyNames(
+            Object.getPrototypeOf(trigger)
+          )
+        : null
+    );
+
+    statusEl.textContent =
+      "Animation loaded";
+
+    setTimeout(() => {
+      statusEl.style.display = "none";
+    }, 1200);
+  },
+
+  onLoadError: error => {
+    console.error(
+      "RIVE LOAD ERROR:",
+      error
+    );
+
+    statusEl.textContent =
+      "Could not load Rive file.";
+  }
+});
+</script>
+</body>
+
+</html>
