@@ -618,6 +618,10 @@ justify-content:center;
 
     let selectedTier = null;
 
+    let isStarter = null;
+    let isBooster = null;
+    let isPro = null;
+
     let symbolWatcher = null;
 
     let lastSymbolValue = null;
@@ -651,6 +655,95 @@ justify-content:center;
 
       }
     );
+
+
+
+    // =====================================================
+    // APPLY CARD TIER TO RIVE
+    //
+    // We set BOTH the string and the three booleans from
+    // JavaScript. This makes the browser runtime use the
+    // same tier state that works inside Rive.
+    // =====================================================
+
+    function applyCardTier(tier) {
+
+      if (!scratchVM) {
+        return;
+      }
+
+      const cardTier =
+        scratchVM.string(
+          "cardTier"
+        );
+
+      isStarter =
+        scratchVM.boolean(
+          "isStarter"
+        );
+
+      isBooster =
+        scratchVM.boolean(
+          "isBooster"
+        );
+
+      isPro =
+        scratchVM.boolean(
+          "isPro"
+        );
+
+
+      if (cardTier) {
+        cardTier.value =
+          tier;
+      }
+
+
+      if (isStarter) {
+        isStarter.value =
+          tier === "Starter";
+      }
+
+
+      if (isBooster) {
+        isBooster.value =
+          tier === "Booster";
+      }
+
+
+      if (isPro) {
+        isPro.value =
+          tier === "Pro";
+      }
+
+
+      console.log(
+        "CARD TIER FROM HTML:",
+        tier,
+        {
+          cardTier:
+            cardTier
+              ? cardTier.value
+              : null,
+
+          isStarter:
+            isStarter
+              ? isStarter.value
+              : null,
+
+          isBooster:
+            isBooster
+              ? isBooster.value
+              : null,
+
+          isPro:
+            isPro
+              ? isPro.value
+              : null
+        }
+      );
+
+    }
 
 
 
@@ -730,32 +823,12 @@ justify-content:center;
 
 
             // =============================================
-            // cardTier
+            // CARD TIER + TIER BOOLEANS
             // =============================================
 
-            const cardTier =
-              scratchVM.string(
-                "cardTier"
-              );
-
-
-            if (!cardTier) {
-
-              console.error(
-                "cardTier not found"
-              );
-
-            } else {
-
-              cardTier.value =
-                tier;
-
-              console.log(
-                "cardTier:",
-                cardTier.value
-              );
-
-            }
+            applyCardTier(
+              tier
+            );
 
 
             // =============================================
@@ -1002,6 +1075,15 @@ justify-content:center;
           null;
 
         selectedTier =
+          null;
+
+        isStarter =
+          null;
+
+        isBooster =
+          null;
+
+        isPro =
           null;
 
         lastSymbolValue =
