@@ -11,6 +11,13 @@
 
   <title>Scratch Game</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
   <style>
     * {
       box-sizing: border-box;
@@ -77,7 +84,7 @@ justify-content:center;
 
 
     /* =====================================================
-       GAME SELECTION SCREEN
+       TICKET PURCHASE SCREEN
     ===================================================== */
 
     .game-select {
@@ -93,25 +100,14 @@ justify-content:center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-
-      padding:
-        max(24px, env(safe-area-inset-top))
-        20px
-        max(24px, env(safe-area-inset-bottom));
-
-      gap: 32px;
 
       overflow-y: auto;
 
-      color: white;
+      color: #fff;
 
-      background:
-        radial-gradient(
-          circle at center,
-          #121642 0%,
-          #1e256b 75%
-        );
+      background: #121642;
+
+      font-family: "Kanit", Arial, sans-serif;
     }
 
 
@@ -120,86 +116,346 @@ justify-content:center;
     }
 
 
-    .game-select h1 {
+    /* ---- top bar ---- */
+
+    .ps-topbar {
+      width: 100%;
+      max-width: 420px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+
+      padding: max(16px, env(safe-area-inset-top)) 16px 0;
+    }
+
+
+    .ps-icon-btn {
       flex-shrink: 0;
 
-      font-size: clamp(26px, 6vw, 38px);
-      line-height: 1.1;
+      width: 28px;
+      height: 28px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border: 0;
+      border-radius: 999px;
+
+      background: rgba(0, 0, 0, 0.24);
+      color: #fff;
+
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1;
+
+      cursor: pointer;
+    }
+
+
+    .ps-icon-btn.plain {
+      background: transparent;
+    }
+
+
+    .ps-balances {
+      flex: 1;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+
+    .ps-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      height: 32px;
+      padding: 0 8px;
+
+      border-radius: 12px;
+
+      background: rgba(18, 22, 66, 0.44);
+
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.03em;
+    }
+
+
+    .ps-chip-ico {
+      font-size: 15px;
+    }
+
+
+    .ps-chip.cash    { color: #d6ff8c; }
+    .ps-chip.tickets { color: #fbe94b; }
+
+
+    /* ---- header ---- */
+
+    .ps-head {
+      width: 100%;
+      max-width: 360px;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+
+      padding: 20px 24px 0;
+
       text-align: center;
     }
 
 
+    .ps-logo {
+      font-weight: 600;
+      font-size: clamp(28px, 9vw, 34px);
+      line-height: 1.2;
+
+      color: #feffe5;
+
+      text-shadow:
+        0 2px 0 #161c7b,
+        0 0.5px 0 #6e78ff;
+    }
+
+
+    .ps-subtitle {
+      font-weight: 600;
+      font-size: 24px;
+
+      color: #f5f4f4;
+    }
+
+
+    /* ---- card row ---- */
+
     .tier-list {
-      width: min(760px, 100%);
+      width: 100%;
+      max-width: 360px;
 
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      display: flex;
+      gap: 12px;
+      align-items: center;
 
-      gap: 16px;
+      /* side padding lets the first / last card settle in the centre */
+      padding: 20px max(24px, calc(50% - 90px));
+
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+
+    .tier-list::-webkit-scrollbar {
+      display: none;
     }
 
 
     .tier-card {
-      min-width: 0;
-      min-height: 220px;
+      position: relative;
+      isolation: isolate;
 
-      padding: 22px;
+      width: 180px;
+      min-width: 180px;
+      height: 264px;
 
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
 
-      gap: 16px;
+      padding-top: 12px;
 
-      border-radius: 24px;
+      border: 2px solid #fff;
+      border-radius: 12px;
 
-      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      scroll-snap-align: center;
 
-      border:
-        1px solid
-        rgba(255, 255, 255, 0.13);
+      transform: scale(0.84);
+      opacity: 0.5;
 
-      backdrop-filter: blur(14px);
+      transition:
+        transform 0.28s ease,
+        opacity 0.28s ease;
+
+      will-change: transform;
     }
 
 
-    .tier-name {
-      font-size: 22px;
-      font-weight: 700;
+    .tier-card.is-active {
+      transform: scale(1.04);
+      opacity: 1;
+
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
     }
 
 
-    .tier-description {
+    @media (prefers-reduced-motion: reduce) {
+      .tier-card { transition: none; }
+    }
+
+
+    .tier-card.starter { background: linear-gradient(180deg, #9cfef2 0%, #76de99 100%); }
+    .tier-card.booster { background: #ac4bff; }
+    .tier-card.pro     { background: linear-gradient(180deg, #ffb835 0%, #ff7441 100%); }
+
+
+    /* decorative dot pattern */
+    .tier-card::before {
+      content: "";
+
+      position: absolute;
+      inset: -20px;
+      z-index: -1;
+
+      background-image:
+        radial-gradient(
+          circle at center,
+          rgba(255, 255, 255, 0.55) 0 6px,
+          transparent 7px
+        );
+      background-size: 46px 46px;
+
+      opacity: 0.18;
+    }
+
+
+    .tier-card.booster::before { opacity: 0.14; }
+    .tier-card.pro::before     { opacity: 0.13; }
+
+
+    .tier-body {
       flex: 1;
 
       display: flex;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      gap: 2px;
 
-      color: rgba(255, 255, 255, 0.6);
+      padding: 0 10px;
 
-      font-size: 13px;
-      line-height: 1.4;
       text-align: center;
     }
 
 
-    .tier-button {
-      width: 100%;
-      min-height: 48px;
+    .tier-name {
+      font-weight: 700;
+      font-size: 24px;
+      line-height: 1;
 
-      padding: 12px 18px;
+      color: #fff;
+
+      text-shadow: 0 2px 0 #ae4fb4;
+    }
+
+
+    .tier-description {
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 14px;
+
+      color: rgba(18, 22, 66, 0.77);
+    }
+
+
+    .tier-prize {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      margin-top: 6px;
+
+      font-weight: 800;
+      font-size: 20px;
+
+      color: #fff;
+
+      text-shadow: 0.875px 1.75px 0 #0d2b02;
+    }
+
+
+    .tier-prize-ico {
+      font-size: 20px;
+    }
+
+
+    .tier-foot {
+      width: 100%;
+
+      padding: 12px;
+
+      background: #fff;
+    }
+
+
+    .tier-button {
+      position: relative;
+
+      width: 100%;
+      min-height: 36px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      padding: 6px 16px 10px;
 
       border: 0;
-      border-radius: 999px;
+      border-radius: 8px;
 
-      background: white;
-      color: #111;
+      background: #5e69ff;
+      color: #fff;
 
-      font-size: 16px;
-      font-weight: 700;
+      box-shadow: inset 0 -6px 0 0 #4854eb;
+
+      font-family: inherit;
+      font-weight: 400;
+      font-size: 14px;
 
       cursor: pointer;
+    }
+
+
+    .tier-price {
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0.025em;
+    }
+
+
+    /* ---- bottom links ---- */
+
+    .ps-odds {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+
+      padding: 16px 24px max(24px, env(safe-area-inset-bottom));
+
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 14px;
+
+      color: #fff;
+      text-align: center;
+    }
+
+
+    .ps-odds a {
+      color: #fff;
+      text-decoration: none;
     }
 
 
@@ -309,74 +565,6 @@ justify-content:center;
 
     @media (max-width: 700px) {
 
-      .game-select {
-        justify-content: flex-start;
-
-        padding-top:
-          max(
-            42px,
-            env(safe-area-inset-top)
-          );
-      }
-
-
-      .tier-list {
-        width: min(360px, 100%);
-
-        grid-template-columns: 1fr;
-
-        gap: 12px;
-      }
-
-
-      .tier-card {
-        width: 100%;
-        min-height: 116px;
-
-        display: grid;
-
-        grid-template-columns:
-          minmax(0, 1fr)
-          82px;
-
-        grid-template-rows:
-          auto
-          auto;
-
-        align-items: center;
-
-        gap: 5px 16px;
-
-        padding: 18px;
-      }
-
-
-      .tier-name {
-        grid-column: 1;
-        grid-row: 1;
-
-        text-align: left;
-      }
-
-
-      .tier-description {
-        grid-column: 1;
-        grid-row: 2;
-
-        display: block;
-
-        text-align: left;
-      }
-
-
-      .tier-button {
-        grid-column: 2;
-        grid-row: 1 / 3;
-
-        width: 82px;
-      }
-
-
       .controls {
         width:
           calc(
@@ -417,18 +605,9 @@ justify-content:center;
 
     @media (max-height: 550px) {
 
-      .game-select {
-        justify-content: flex-start;
-        padding-top: 16px;
-      }
-
-      .tier-list {
-        grid-template-columns: repeat(3, 1fr);
-        max-width: 700px;
-      }
-
-      .tier-card {
-        min-height: 150px;
+      .ps-head {
+        gap: 12px;
+        padding-top: 12px;
       }
 
     }
@@ -448,74 +627,118 @@ justify-content:center;
     id="gameSelect"
   >
 
-    <h1>Select your game:</h1>
+    <div class="ps-topbar">
+
+      <button
+        class="ps-icon-btn"
+        type="button"
+        aria-label="Help"
+      >?</button>
+
+      <div class="ps-balances">
+
+        <span class="ps-chip cash">
+          <span class="ps-chip-ico">💵</span>25.05
+        </span>
+
+        <span class="ps-chip tickets">
+          <span class="ps-chip-ico">🎟️</span>3
+        </span>
+
+      </div>
+
+      <button
+        class="ps-icon-btn plain"
+        type="button"
+        aria-label="Close"
+      >✕</button>
+
+    </div>
 
 
-    <div class="tier-list">
+    <div class="ps-head">
+      <div class="ps-logo">Scratch‘n’Win</div>
+      <div class="ps-subtitle">Purchase Tickets</div>
+    </div>
 
 
-      <div class="tier-card">
+    <div class="tier-list" id="tierList">
 
-        <div class="tier-name">
-          Starter
+
+      <div class="tier-card starter">
+
+        <div class="tier-body">
+          <div class="tier-name">Starter</div>
+          <div class="tier-description">Scratch to win up to</div>
+          <div class="tier-prize">
+            <span class="tier-prize-ico">💵</span>$10
+          </div>
         </div>
 
-        <div class="tier-description">
-          Start scratching and reveal your reward.
+        <div class="tier-foot">
+          <button
+            class="tier-button"
+            data-tier="Starter"
+          >
+            Scratch for <span class="tier-price">$1.00</span>
+          </button>
         </div>
-
-        <button
-          class="tier-button"
-          data-tier="Starter"
-        >
-          $1
-        </button>
 
       </div>
 
 
 
-      <div class="tier-card">
+      <div class="tier-card booster">
 
-        <div class="tier-name">
-          Booster
+        <div class="tier-body">
+          <div class="tier-name">Booster</div>
+          <div class="tier-description">Scratch to win up to</div>
+          <div class="tier-prize">
+            <span class="tier-prize-ico">💵</span>$300
+          </div>
         </div>
 
-        <div class="tier-description">
-          Boost your game with bigger possibilities.
+        <div class="tier-foot">
+          <button
+            class="tier-button"
+            data-tier="Booster"
+          >
+            Scratch for <span class="tier-price">$2.00</span>
+          </button>
         </div>
-
-        <button
-          class="tier-button"
-          data-tier="Booster"
-        >
-          $2
-        </button>
 
       </div>
 
 
 
-      <div class="tier-card">
+      <div class="tier-card pro">
 
-        <div class="tier-name">
-          Pro
+        <div class="tier-body">
+          <div class="tier-name">Pro</div>
+          <div class="tier-description">Scratch to win up to</div>
+          <div class="tier-prize">
+            <span class="tier-prize-ico">💵</span>$1,000
+          </div>
         </div>
 
-        <div class="tier-description">
-          Go all in with the Pro game.
+        <div class="tier-foot">
+          <button
+            class="tier-button"
+            data-tier="Pro"
+          >
+            Scratch for <span class="tier-price">$5.00</span>
+          </button>
         </div>
-
-        <button
-          class="tier-button"
-          data-tier="Pro"
-        >
-          $5
-        </button>
 
       </div>
 
 
+    </div>
+
+
+    <div class="ps-odds">
+      <span>Odds 4 in 1</span>
+      <a href="#">View Prize table</a>
     </div>
 
   </div>
@@ -625,6 +848,191 @@ justify-content:center;
     let symbolWatcher = null;
 
     let lastSymbolValue = null;
+
+
+
+    // =====================================================
+    // TIER CAROUSEL
+    //
+    // The three cards scroll horizontally. The card closest
+    // to the centre of the track is the "active" one and is
+    // scaled up. Tapping a side card centres it first; the
+    // second tap on the active card's button starts the game.
+    // =====================================================
+
+    const tierList =
+      document.getElementById(
+        "tierList"
+      );
+
+    const tierCards =
+      Array.from(
+        document.querySelectorAll(
+          ".tier-card"
+        )
+      );
+
+    let activeCard = null;
+
+    let carouselRaf = null;
+
+
+    function updateActiveCard() {
+
+      carouselRaf = null;
+
+      if (!tierList) {
+        return;
+      }
+
+      const listRect =
+        tierList.getBoundingClientRect();
+
+      const center =
+        listRect.left +
+        listRect.width / 2;
+
+
+      let closest = null;
+      let closestDist = Infinity;
+
+
+      tierCards.forEach(card => {
+
+        const rect =
+          card.getBoundingClientRect();
+
+        const cardCenter =
+          rect.left + rect.width / 2;
+
+        const dist =
+          Math.abs(cardCenter - center);
+
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = card;
+        }
+
+      });
+
+
+      if (closest === activeCard) {
+        return;
+      }
+
+
+      tierCards.forEach(card => {
+
+        card.classList.toggle(
+          "is-active",
+          card === closest
+        );
+
+      });
+
+
+      activeCard = closest;
+
+    }
+
+
+    function queueUpdateActiveCard() {
+
+      if (carouselRaf !== null) {
+        return;
+      }
+
+      carouselRaf =
+        requestAnimationFrame(
+          updateActiveCard
+        );
+
+    }
+
+
+    function centerCard(card, behavior) {
+
+      if (!card) {
+        return;
+      }
+
+      const target =
+        card.offsetLeft +
+        card.offsetWidth / 2 -
+        tierList.clientWidth / 2;
+
+
+      tierList.scrollTo({
+        left: target,
+        behavior: behavior || "smooth"
+      });
+
+    }
+
+
+    if (tierList) {
+
+      tierList.addEventListener(
+        "scroll",
+        queueUpdateActiveCard,
+        { passive: true }
+      );
+
+      window.addEventListener(
+        "resize",
+        queueUpdateActiveCard
+      );
+
+
+      // Centre a card when it (or anything inside it) is
+      // tapped while it is not the active card.
+
+      tierList.addEventListener(
+        "click",
+        event => {
+
+          const card =
+            event.target.closest(
+              ".tier-card"
+            );
+
+          if (!card) {
+            return;
+          }
+
+          if (card !== activeCard) {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            centerCard(card);
+
+          }
+
+        },
+        true
+      );
+
+
+      // Start on the middle card.
+
+      requestAnimationFrame(() => {
+
+        centerCard(
+          tierCards[
+            Math.floor(
+              tierCards.length / 2
+            )
+          ],
+          "auto"
+        );
+
+        updateActiveCard();
+
+      });
+
+    }
 
 
 
