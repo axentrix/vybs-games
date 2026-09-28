@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Halloween Pinatas</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0d0a14;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =====================================================
+       CANVAS WRAPPER
+       ===================================================== */
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 360px;
+      max-height: 852px;
+      border-radius: 28px;
+      background-color: #1a1024;
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      transition: background-image 0.3s ease;
+    }
+
+    /* Full width, height follows the artboard's aspect ratio (set on load) */
+    #riveCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* =====================================================
+       PINATA SELECT
+       ===================================================== */
+
+    .picker {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .picker label {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+    }
+
+    .picker select {
+      appearance: none;
+      -webkit-appearance: none;
+      min-width: 200px;
+      padding: 12px 40px 12px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(30, 14, 44, 0.85)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E")
+        no-repeat right 16px center;
+      border: 2px solid #ff8a1f;
+      border-radius: 14px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .picker select:focus-visible {
+      box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.45);
+    }
+
+    .picker select option {
+      background: #1e0e2c;
+      color: #fff;
+    }
+
+    .status {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 24px;
+      z-index: 2;
+      text-align: center;
+      color: #fff;
+      font-size: 14px;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="canvas-wrapper" id="wrapper">
+
+    <canvas id="riveCanvas"></canvas>
+
+    <div class="picker" id="picker">
+      <label for="pinataSelect">Choose your pinata</label>
+      <select id="pinataSelect">
+        <option value="" disabled selected>Select pinata…</option>
+        <option value="basic">Basic</option>
+        <option value="advanced">Advanced</option>
+        <option value="titan">Titan</option>
+        <option value="boss">Boss</option>
+      </select>
+    </div>
+
+    <div class="status" id="status"></div>
+
+  </div>
+
+  <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./pinata_halloween.riv";
+    const MAIN_ARTBOARD = "Artboard";
+    const STATE_MACHINE = "State Machine 3";
+    const VIEW_MODEL = "PinataVM";
+    const ARTBOARD_PROPERTY = "pinataArtboard";
+
+    const PINATAS = {
+      basic:    { artboard: "halloween_basic",    background: "basic.png"    },
+      advanced: { artboard: "halloween_advanced", background: "advanced.png" },
+      titan:    { artboard: "halloween_titan",    background: "titan.png"    },
+      boss:     { artboard: "halloween_boss",     background: "boss1.png"    }
+    };
+
+
+    const wrapper = document.getElementById("wrapper");
+    const canvas = document.getElementById("riveCanvas");
+    const picker = document.getElementById("picker");
+    const select = document.getElementById("pinataSelect");
+    const statusEl = document.getElementById("status");
+
+    let riveAnimation = null;
+
+
+    // =====================================================
+    // SELECT
+    // =====================================================
+
+    select.addEventListener("change", () => {
+
+      const pinata = PINATAS[select.value];
+
+      if (!pinata) {
+        return;
+      }
+
+      picker.remove();
+      wrapper.style.backgroundImage = `url("./${pinata.background}")`;
+
+      loadPinata(pinata.artboard);
+
+    });
+
+
+    // =====================================================
+    // LOAD RIVE
+    // =====================================================
+
+    function loadPinata(artboardName) {
+
+      if (riveAnimation) {
+        riveAnimation.cleanup();
+        riveAnimation = null;
+      }
+
+      statusEl.textContent = "Loading pinata…";
+
+      riveAnimation = new rive.Rive({
+
+        src: RIVE_SRC,
+        canvas: canvas,
+        autoplay: true,
+        artboard: MAIN_ARTBOARD,
+        stateMachines: STATE_MACHINE,
+        autoBind: false,
+
+        layout: new rive.Layout({
+          fit: rive.Fit.Contain,
+          alignment: rive.Alignment.TopCenter
+        }),
+
+        onLoad: () => {
+
+          // Canvas height: auto -> match the artboard's proportions
+          const b = riveAnimation.bounds;
+          canvas.style.aspectRatio = `${b.maxX - b.minX} / ${b.maxY - b.minY}`;
+
+          resizeRive();
+
+          const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
+
+          if (!viewModel) {
+            console.error(`${VIEW_MODEL} not found`);
+            statusEl.textContent = "View model not found";
+            return;
+          }
+
+          const vmi = viewModel.defaultInstance() || viewModel.instance();
+
+          setPinataArtboard(vmi, artboardName);
+
+          riveAnimation.bindViewModelInstance(vmi);
+
+          console.log("State machines in artboard:", riveAnimation.stateMachineNames);
+          console.log("Playing state machine:", STATE_MACHINE);
+
+          trackHitTrigger(vmi);
+
+          statusEl.textContent = "";
+
+          // Device-mode viewport changes can land right after load
+          requestAnimationFrame(resizeRive);
+          setTimeout(resizeRive, 100);
+
+        },
+
+        onLoadError: (err) => {
+          console.error("RIVE LOAD ERROR:", err);
+          statusEl.textContent = "Failed to load pinata";
+        }
+
+      });
+
+    }
+
+
+    // =====================================================
+    // pinataArtboard
+    // Supports an artboard, string or enum property.
+    // =====================================================
+
+    function setPinataArtboard(vmi, artboardName) {
+
+      const artboardProp = vmi.artboard && vmi.artboard(ARTBOARD_PROPERTY);
+
+      if (artboardProp) {
+        artboardProp.value = riveAnimation.getBindableArtboard(artboardName);
+        return;
+      }
+
+      const stringProp = vmi.string(ARTBOARD_PROPERTY);
+
+      if (stringProp) {
+        stringProp.value = artboardName;
+        return;
+      }
+
+      const enumProp = vmi.enum(ARTBOARD_PROPERTY);
+
+      if (enumProp) {
+        enumProp.value = artboardName;
+        return;
+      }
+
+      console.error(`${ARTBOARD_PROPERTY} not found on ${VIEW_MODEL}`);
+
+    }
+
+
+    // =====================================================
+    // hitTrigger
+    // =====================================================
+
+    let hitCount = 0;
+
+    function trackHitTrigger(vmi) {
+
+      const hitTrigger = vmi.trigger("hitTrigger");
+
+      if (!hitTrigger) {
+        console.error(`hitTrigger not found on ${VIEW_MODEL}`);
+        return;
+      }
+
+      hitTrigger.on(() => {
+        hitCount++;
+        console.log(`hitTrigger fired (#${hitCount})`);
+      });
+
+    }
+
+
+    // Confirms taps actually reach the canvas
+    canvas.addEventListener("pointerdown", (e) => {
+      console.log("canvas pointerdown", e.offsetX, e.offsetY);
+    });
+
+
+    // =====================================================
+    // RESIZE
+    // =====================================================
+
+    function resizeRive() {
+
+      if (!riveAnimation) {
+        return;
+      }
+
+      riveAnimation.resizeDrawingSurfaceToCanvas();
+
+    }
+
+
+    window.addEventListener("resize", resizeRive);
+
+    new ResizeObserver(resizeRive).observe(canvas);
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(resizeRive, 100);
+    });
+
+  </script>
+
+</body>
+</html>
