@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vybs FTUE</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0d0a14;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =====================================================
+       CANVAS WRAPPER
+       ===================================================== */
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 360px;
+      max-height: 852px;
+      border-radius: 28px;
+      overflow: hidden;
+      background: #1a1024;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    #riveCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .status {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 24px;
+      text-align: center;
+      color: #fff;
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* =====================================================
+       LEVEL RADIOS
+       ===================================================== */
+
+    .levels {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      background: rgba(30, 14, 44, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+    }
+
+    .levels input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .levels label {
+      padding: 10px 16px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .levels input:checked + label {
+      background: #ff8a1f;
+      color: #1a1024;
+    }
+
+    .levels input:focus-visible + label {
+      outline: 2px solid #ff8a1f;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="canvas-wrapper">
+    <canvas id="riveCanvas"></canvas>
+    <div class="status" id="status">Loading…</div>
+  </div>
+
+  <div class="levels" role="radiogroup" aria-label="Level">
+    <input type="radio" name="level" id="level1" value="level1" checked />
+    <label for="level1">Level 1</label>
+    <input type="radio" name="level" id="level2" value="level2" />
+    <label for="level2">Level 2</label>
+    <input type="radio" name="level" id="level3" value="level3" />
+    <label for="level3">Level 3</label>
+  </div>
+
+  <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./ftue_vybs2";
+    const ARTBOARD = "Artboard";
+    const STATE_MACHINE = "State Machine 1";
+    const VIEW_MODEL = "FtueVM";
+
+
+    const canvas = document.getElementById("riveCanvas");
+    const statusEl = document.getElementById("status");
+
+    let riveAnimation = null;
+    let ftueVM = null;
+
+
+    // =====================================================
+    // LEVEL TRIGGERS
+    // =====================================================
+
+    function fireLevel(name) {
+
+      if (!ftueVM) {
+        return;
+      }
+
+      const trigger = ftueVM.trigger(name);
+
+      if (!trigger) {
+        console.error(`${name} trigger not found on ${VIEW_MODEL}`);
+        return;
+      }
+
+      trigger.trigger();
+      console.log(`${name} triggered`);
+
+    }
+
+    document.querySelectorAll('input[name="level"]').forEach((radio) => {
+      // Level 1 restarts the whole animation, even if already selected
+      if (radio.value === "level1") {
+        radio.addEventListener("click", loadRive);
+      } else {
+        radio.addEventListener("change", () => fireLevel(radio.value));
+      }
+    });
+
+
+    // =====================================================
+    // LOAD RIVE
+    // =====================================================
+
+    function loadRive() {
+
+      if (riveAnimation) {
+        riveAnimation.cleanup();
+        riveAnimation = null;
+      }
+
+      ftueVM = null;
+      statusEl.textContent = "Loading…";
+
+      riveAnimation = new rive.Rive({
+
+        src: RIVE_SRC,
+        canvas: canvas,
+        autoplay: true,
+        artboard: ARTBOARD,
+        stateMachines: STATE_MACHINE,
+        autoBind: false,
+
+        layout: new rive.Layout({
+          fit: rive.Fit.Contain,
+          alignment: rive.Alignment.Center
+        }),
+
+        onLoad: () => {
+
+          resizeRive();
+
+          console.log("State machines in artboard:", riveAnimation.stateMachineNames);
+
+          const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
+
+          if (!viewModel) {
+            console.error(`${VIEW_MODEL} not found`);
+            statusEl.textContent = "View model not found";
+            return;
+          }
+
+          const vmi = viewModel.defaultInstance() || viewModel.instance();
+
+          riveAnimation.bindViewModelInstance(vmi);
+
+          ftueVM = vmi;
+
+          fireLevel("level1");
+
+          statusEl.textContent = "";
+
+          // Device-mode viewport changes can land right after load
+          requestAnimationFrame(resizeRive);
+          setTimeout(resizeRive, 100);
+
+        },
+
+        onLoadError: (err) => {
+          console.error("RIVE LOAD ERROR:", err);
+          statusEl.textContent = "Failed to load animation";
+        }
+
+      });
+
+    }
+
+    loadRive();
+
+
+    // =====================================================
+    // RESIZE
+    // =====================================================
+
+    function resizeRive() {
+      if (!riveAnimation) {
+        return;
+      }
+      riveAnimation.resizeDrawingSurfaceToCanvas();
+    }
+
+    window.addEventListener("resize", resizeRive);
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(resizeRive, 100);
+    });
+
+  </script>
+
+</body>
+</html>
