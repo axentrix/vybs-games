@@ -39,6 +39,17 @@
       transition: background-image 0.3s ease;
     }
 
+    /* Mobile: edge to edge, full screen */
+    @media (max-width: 480px) {
+      .canvas-wrapper {
+        max-width: none;
+        max-height: none;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
     /* Full width, height follows the artboard's aspect ratio (set on load) */
     #riveCanvas {
       position: absolute;
