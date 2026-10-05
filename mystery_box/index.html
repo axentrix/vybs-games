@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vybs Mystery Box</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white: #ffffff;
+      --popup-bg: radial-gradient(183.4% 49.1% at 50% 50.9%,
+        rgba(88, 71, 223, 0.88) 0%,
+        rgba(71, 57, 185, 0.88) 22.351%,
+        rgba(55, 42, 146, 0.88) 44.703%,
+        rgba(38, 28, 108, 0.88) 67.054%,
+        rgba(21, 13, 69, 0.88) 89.405%);
+      --yellow400: #fed846;
+      --brand-dark: #1c1c1e;
+      --button-bg: #434ef0;
+      --button-claimed-bg: linear-gradient(261.63deg, #ffa909 25.988%, #ff4188 82.108%);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0d0a14;
+      font-family: "Kanit", system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =====================================================
+       SCREEN (Booster)
+       ===================================================== */
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      max-width: 360px;
+      max-height: 852px;
+      border-radius: 24px;
+      background: var(--white) url("./main.png") center / cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* =====================================================
+       POPUP (Level Up)
+       ===================================================== */
+
+    .popup {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      background: var(--popup-bg);
+      filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.25));
+      overflow: hidden;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .popup.closing {
+      opacity: 0;
+      transform: scale(0.9);
+      pointer-events: none;
+    }
+
+    .artwork {
+      position: relative;
+      flex: 1 0 0;
+      min-height: 1px;
+      width: 100%;
+    }
+
+    #riveCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .bottom {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 12px 32px;
+    }
+
+    /* levelup-box */
+    .expires {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 9px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: linear-gradient(90deg, rgba(18, 18, 18, 0.22) 5.263%, rgba(18, 18, 18, 0.44) 100%);
+    }
+
+    .expires-label {
+      font-weight: 300;
+      font-size: 16px;
+      line-height: 16px;
+      letter-spacing: 0.5px;
+      color: var(--white);
+      opacity: 0.6;
+      text-align: center;
+    }
+
+    .timer {
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: var(--yellow400);
+      color: var(--brand-dark);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 12px;
+      letter-spacing: -0.42px;
+      white-space: nowrap;
+    }
+
+    .actions {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 12px;
+    }
+
+    /* "Activated" pill that pops out over the button once is_claimed is true. */
+    .badge {
+      position: absolute;
+      top: -2px;
+      right: 16px;
+      z-index: 1;
+      padding: 4px;
+      border-radius: 4px;
+      background: linear-gradient(59.2deg, #fec806 9.116%, #ffe99a 83.23%);
+      color: #fffdf8;
+      /* 1px outer stroke: 2px centred stroke painted under the fill. */
+      -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
+      paint-order: stroke fill;
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 17.094px;
+      letter-spacing: 0.42px;
+      text-align: center;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(8px) scale(0.4);
+      pointer-events: none;
+    }
+
+    .badge.show {
+      animation: badgePop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+    }
+
+    @keyframes badgePop {
+      from { opacity: 0; transform: translateY(8px) scale(0.4); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .cta {
+      width: 100%;
+      height: 46px;
+      padding: 0 24px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--button-bg);
+      color: var(--white);
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 18px;
+      line-height: 16px;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+      transition: filter 0.1s, transform 0.08s;
+    }
+
+    .cta:hover { filter: brightness(1.08); }
+    .cta:active { transform: scale(0.98); }
+
+    .cta.claimed {
+      background: var(--button-claimed-bg);
+      cursor: default;
+      transform: none;
+      filter: none;
+    }
+
+    .cta:disabled {
+      opacity: 0.5;
+      cursor: default;
+      transform: none;
+      filter: none;
+    }
+
+    .cta:focus-visible {
+      outline: 2px solid var(--white);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <div class="popup" id="popup" role="dialog" aria-modal="true" aria-label="Mystery box booster">
+
+      <div class="artwork">
+        <canvas id="riveCanvas"></canvas>
+        <div class="status" id="status">Loading…</div>
+      </div>
+
+      <div class="bottom">
+        <div class="expires">
+          <p class="expires-label">Booster expires in</p>
+          <div class="timer" id="timer">12h 5m</div>
+        </div>
+
+        <div class="actions">
+          <span class="badge" id="activatedBadge" aria-live="polite">Activated</span>
+          <button class="cta" id="ctaBtn" disabled>Claim Booster</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@rive-app/canvas@2.39.0"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./mystery_box1";
+    const ARTBOARD = "boxArtboard";
+    const STATE_MACHINE = "State Machine 1";
+    const VIEW_MODEL = "MagicVM";
+
+    const CLAIMED_BOOL = "is_claimed";
+
+    // Rive Event fired when the child state machine reaches Exit. The web
+    // runtime can't see nested state machine states, but nested events bubble up.
+    const END_EVENT = "animation_end";
+
+    // Fallback close if the .riv doesn't fire END_EVENT, measured from the
+    // moment is_claimed is set.
+    const CLAIM_ANIMATION_MS = 4500;
+
+    const EXPIRES_IN_MS = (12 * 60 + 5) * 60 * 1000;
+
+
+    const canvas = document.getElementById("riveCanvas");
+    const statusEl = document.getElementById("status");
+    const ctaBtn = document.getElementById("ctaBtn");
+    const timerEl = document.getElementById("timer");
+    const popupEl = document.getElementById("popup");
+    const badgeEl = document.getElementById("activatedBadge");
+
+    let riveAnimation = null;
+    let magicVM = null;
+    let isClaimed = false;
+
+
+    // =====================================================
+    // VIEW MODEL HELPERS
+    // =====================================================
+
+    function setBoolean(name, value) {
+      try {
+        magicVM.boolean(name).value = value;
+        console.log(name, value);
+      } catch (err) {
+        console.warn("Could not set boolean:", name, err);
+      }
+    }
+
+
+    function closePopup() {
+      if (popupEl.classList.contains("closing")) {
+        return;
+      }
+      popupEl.classList.add("closing");
+      popupEl.addEventListener("transitionend", () => {
+        popupEl.style.display = "none";
+      }, { once: true });
+    }
+
+
+    // =====================================================
+    // RIVE
+    // =====================================================
+
+    riveAnimation = new rive.Rive({
+      src: RIVE_SRC,
+      canvas: canvas,
+      artboard: ARTBOARD,
+      stateMachines: STATE_MACHINE,
+      autoplay: true,
+      layout: new rive.Layout({
+        fit: rive.Fit.Contain,
+        alignment: rive.Alignment.Center,
+      }),
+
+      onLoad: () => {
+        riveAnimation.resizeDrawingSurfaceToCanvas();
+
+        const vm = riveAnimation.viewModelByName?.(VIEW_MODEL);
+
+        if (!vm) {
+          console.warn(VIEW_MODEL + " not found");
+        } else {
+          magicVM = vm.defaultInstance?.() || vm.instance?.();
+          riveAnimation.bindViewModelInstance(magicVM);
+          console.log(VIEW_MODEL + " bound");
+
+          const claimed = magicVM.boolean(CLAIMED_BOOL);
+          claimed?.on(() => {
+            if (claimed.value) {
+              badgeEl.classList.add("show");
+            }
+          });
+        }
+
+        riveAnimation.on(rive.EventType.RiveEvent, (event) => {
+          console.log("Rive event:", event.data?.name);
+          if (isClaimed && event.data?.name === END_EVENT) {
+            closePopup();
+          }
+        });
+
+        statusEl.style.display = "none";
+        ctaBtn.disabled = false;
+      },
+
+      onLoadError: (err) => {
+        console.error("[rive] failed to load:", err);
+        statusEl.textContent = "Failed to load animation";
+      },
+    });
+
+
+    // =====================================================
+    // UI
+    // =====================================================
+
+    ctaBtn.addEventListener("click", () => {
+
+      if (!magicVM || isClaimed) {
+        return;
+      }
+
+      isClaimed = true;
+      ctaBtn.classList.add("claimed");
+      setBoolean(CLAIMED_BOOL, true);
+
+      setTimeout(closePopup, CLAIM_ANIMATION_MS);
+    });
+
+
+    // =====================================================
+    // EXPIRY COUNTDOWN
+    // =====================================================
+
+    const expiresAt = Date.now() + EXPIRES_IN_MS;
+
+    function updateTimer() {
+      const totalMinutes = Math.max(0, Math.ceil((expiresAt - Date.now()) / 60000));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      timerEl.textContent = hours + "h " + minutes + "m";
+    }
+
+    updateTimer();
+    setInterval(updateTimer, 30000);
+
+    window.addEventListener("resize", () => {
+      riveAnimation?.resizeDrawingSurfaceToCanvas();
+    });
+
+  </script>
+</body>
+</html>
