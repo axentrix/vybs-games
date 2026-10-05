@@ -274,9 +274,9 @@
     // runtime can't see nested state machine states, but nested events bubble up.
     const END_EVENT = "animation_end";
 
-    // Fallback close if the .riv doesn't fire END_EVENT, measured from the
-    // moment is_claimed is set.
-    const CLAIM_ANIMATION_MS = 4500;
+    // Max time the popup stays open after is_claimed is set. It closes on
+    // END_EVENT or this timeout, whichever comes first.
+    const CLAIM_ANIMATION_MS = 400;
 
     const EXPIRES_IN_MS = (12 * 60 + 5) * 60 * 1000;
 
