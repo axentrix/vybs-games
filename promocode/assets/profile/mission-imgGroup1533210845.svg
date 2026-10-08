@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="13.6219" height="28.2188" viewBox="0 0 13.6219 28.2188" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 1533210845" opacity="0.77">
+<path id="Star 3" d="M2.34286 0.000196356L2.97565 1.71563L4.68573 2.3504L2.97565 2.98517L2.34286 4.70061L1.71008 2.98517L0 2.3504L1.71008 1.71563L2.34286 0.000196356Z" fill="white"/>
+<circle id="Ellipse 124059" cx="10.9973" cy="25.5943" r="2.62455" fill="url(#paint0_radial_0_701)"/>
+</g>
+<defs>
+<radialGradient id="paint0_radial_0_701" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(10.9973 25.5943) rotate(90) scale(2.62455)">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

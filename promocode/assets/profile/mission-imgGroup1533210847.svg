@@ -1,0 +1,24 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="44.0182" height="40.8149" viewBox="0 0 44.0182 40.8149" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 1533210847" opacity="0.8">
+<g id="Group 2117075831">
+<circle id="Ellipse 124059" cx="17.2861" cy="33.4198" r="7.39488" fill="url(#paint0_radial_0_709)"/>
+<path id="Star 3" d="M3.71296 15.2048L4.7158 17.9149L7.42592 18.9177L4.7158 19.9206L3.71296 22.6307L2.71013 19.9206L0 18.9177L2.71013 17.9149L3.71296 15.2048Z" fill="white"/>
+</g>
+<circle id="Ellipse 124060" opacity="0.2" cx="40.8435" cy="33.0007" r="3.17465" fill="url(#paint1_radial_0_709)"/>
+<circle id="Ellipse 124061" opacity="0.4" cx="28.5558" cy="5.71099" r="5.71099" fill="url(#paint2_radial_0_709)"/>
+</g>
+<defs>
+<radialGradient id="paint0_radial_0_709" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(17.2861 33.4198) rotate(90) scale(7.39488)">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="paint1_radial_0_709" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(40.8435 33.0007) rotate(90) scale(3.17465)">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="paint2_radial_0_709" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28.5558 5.71099) rotate(90) scale(5.71099)">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>
