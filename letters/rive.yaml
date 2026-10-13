@@ -1,0 +1,7 @@
+name: letters
+logs:
+  file: build/rive.log
+  problems: build/problems.log
+push:
+  projectId: 2014472
+  fileId: 2636167

@@ -1932,6 +1932,26 @@
     // RIVE
     // =====================================================
 
+    // Images exported as "Referenced" ship next to the .riv (e.g. vxp-6625465.png)
+    // and are loaded here by their unique file name. Embedded assets are left to Rive.
+    function loadReferencedAsset(asset, bytes) {
+      if (!asset.isImage || bytes.length > 0) return false;
+
+      fetch("./" + asset.uniqueFilename)
+        .then((res) => {
+          if (!res.ok) throw new Error(res.status + " " + asset.uniqueFilename);
+          return res.arrayBuffer();
+        })
+        .then((buf) => rive.decodeImage(new Uint8Array(buf)))
+        .then((image) => {
+          asset.setRenderImage(image);
+          image.unref();
+        })
+        .catch((err) => console.error("[rive] asset failed to load:", err));
+
+      return true;
+    }
+
     // Created on first open so the canvas has its real size when Rive starts.
     function initRive() {
       riveAnimation = new rive.Rive({
@@ -1943,6 +1963,7 @@
           fit: rive.Fit.Contain,
           alignment: rive.Alignment.Center,
         }),
+        assetLoader: loadReferencedAsset,
 
         onLoad: () => {
           riveAnimation.resizeDrawingSurfaceToCanvas();
