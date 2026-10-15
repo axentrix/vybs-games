@@ -736,7 +736,9 @@
     const VIEW_MODEL = "BingoVM";
 
     const POPUP_W = 360;
-    const POPUP_H = 650;
+    const POPUP_H = 650;      // design height when there's room
+    const POPUP_MIN_H = 480;  // below this, shrink the whole popup instead
+    const POPUP_TOP_GAP = 40; // page left visible above the popup
 
 
     const canvas = document.getElementById("riveCanvas");
@@ -876,15 +878,19 @@
     // RESIZE
     // =====================================================
 
-    // Scale the popup to the screen width, pinned to the bottom
+    // Scale the popup to the screen width, pinned to the bottom. On short
+    // browsers the popup gets shorter instead (the Rive area absorbs it), so
+    // it always fits the visible height with some of the page showing above.
     function fitPopup() {
       const availW = overlay.clientWidth;
-      const availH = overlay.clientHeight;
-      const scale = Math.min(availW / POPUP_W, availH / POPUP_H);
+      const availH = overlay.clientHeight - POPUP_TOP_GAP;
+      const scale = Math.min(availW / POPUP_W, availH / POPUP_MIN_H);
+      const height = Math.min(POPUP_H, availH / scale);
 
       popup.style.transform = `scale(${scale})`;
+      popup.style.height = `${height}px`;
       popupSlot.style.width = `${POPUP_W * scale}px`;
-      popupSlot.style.height = `${POPUP_H * scale}px`;
+      popupSlot.style.height = `${height * scale}px`;
     }
 
     function resizeRive() {
