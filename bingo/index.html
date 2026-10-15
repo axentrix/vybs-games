@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Bingo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --popup-bg: #3d47d0;
+      --panel-bg: #ececfb;
+      --tile-bg: #d3d3ff;
+      --button-bg: #abb1ff;
+      --outline: #282d71;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0b0a1a;
+      font-family: "Kanit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    img { display: block; max-width: none; }
+
+    /* =====================================================
+       SCREEN
+       ===================================================== */
+
+    /* Desktop: fixed phone-sized frame */
+    .screen {
+      position: relative;
+      width: 100%;
+      max-width: 393px;
+      height: 852px;
+      max-height: 100dvh;
+      border-radius: 28px;
+      overflow: hidden;
+      background: #f2f2f7 url("./main.png") top center / cover no-repeat;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Mobile: edge to edge, full screen */
+    @media (max-width: 480px) {
+      .screen {
+        height: 100vh;
+        height: 100dvh;
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
+    /* =====================================================
+       OVERLAY
+       ===================================================== */
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0;
+      background: rgba(5, 4, 18, 0.6);
+      transition: opacity 0.25s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Holds the popup at its scaled size so layout around it stays correct */
+    .popup-slot {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    /* =====================================================
+       POPUP (Figma 8009:62585, 360 wide; shortened to a bottom sheet)
+       ===================================================== */
+
+    .popup {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 360px;
+      height: 650px;
+      transform-origin: top left;
+      background: var(--popup-bg);
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+    }
+
+    #riveCanvas {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    .status {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      text-align: center;
+      color: #fff;
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .abs { position: absolute; }
+    .fill { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    /* ---------- Header logo ---------- */
+
+    .logo {
+      position: absolute;
+      left: 50%;
+      top: 13px;
+      width: 160px;
+      height: auto;
+      transform: translateX(-50%);
+    }
+
+    /* ---------- Corner buttons ---------- */
+
+    .close-button {
+      position: absolute;
+      left: 309px;
+      top: 11px;
+      z-index: 2;
+      display: flex;
+      padding: 4px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(40, 45, 113, 0.64);
+      cursor: pointer;
+    }
+
+    .close-button .icon {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      overflow: hidden;
+    }
+
+    .close-button .icon > div {
+      position: absolute;
+      inset: 34.86%;
+    }
+
+    .close-button img {
+      position: absolute;
+      inset: -8.25%;
+      width: 116.5%;
+      height: 116.5%;
+    }
+
+    .help-button {
+      position: absolute;
+      left: 9.5px;
+      top: 13px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 23px;
+      height: 24px;
+      padding: 6px 8px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    .help-button img {
+      width: 4.892px;
+      height: 7.338px;
+    }
+
+    /* ---------- Rewards panel ---------- */
+
+    .rewards {
+      position: absolute;
+      left: calc(50% - 0.34px);
+      bottom: 16px;
+      width: 312px;
+      transform: translateX(-50%);
+    }
+
+    .rewards-tab {
+      position: absolute;
+      left: 50%;
+      top: -12.63px;
+      width: 126.842px;
+      height: 21.363px;
+      transform: translateX(-50%);
+      border-radius: 12px;
+      background: var(--panel-bg);
+    }
+
+    .rewards-title {
+      position: absolute;
+      left: 50%;
+      top: -1.94px;
+      width: 90px;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-weight: 600;
+      font-size: 12.621px;
+      line-height: 11.683px;
+      letter-spacing: 0.3786px;
+      white-space: nowrap;
+      color: #eeefff;
+    }
+
+    .panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 156px;
+      padding: 9.536px;
+      border-radius: 14.304px;
+      background: var(--panel-bg);
+      overflow: hidden;
+    }
+
+    /* Navy outline around white text, as in the design */
+    .outlined {
+      color: #fff;
+      -webkit-text-stroke: 3px var(--outline);
+      paint-order: stroke fill;
+    }
+
+    .tiles {
+      display: flex;
+      gap: 4.768px;
+      width: 100%;
+    }
+
+    .tile {
+      flex: 1 0 0;
+      min-width: 1px;
+      height: 79px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-radius: 7.014px;
+      background: var(--tile-bg);
+      overflow: hidden;
+    }
+
+    .tile.wheel-tile { padding-bottom: 12px; }
+
+    .tile-head {
+      width: 100%;
+      height: 21.043px;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3.507px 0;
+      font-weight: 700;
+      font-size: 14.304px;
+      line-height: 14.028px;
+      text-align: center;
+    }
+
+    .reward-pill {
+      height: 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reward-value {
+      font-weight: 800;
+      font-size: 16px;
+      line-height: 16.688px;
+      letter-spacing: -0.48px;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .cash-icon {
+      width: 41px;
+      height: 36.556px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: -6px;
+    }
+
+    .cash-icon img {
+      width: 33.76px;
+      height: 25.469px;
+    }
+
+    .token-box {
+      width: 32.31px;
+      height: 31.679px;
+      margin-bottom: -4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Puzzle piece */
+    .puzzle {
+      overflow: hidden;
+    }
+
+    .puzzle > div {
+      position: absolute;
+      left: 3.7px;
+      top: 2.88px;
+      width: 25.622px;
+      height: 25.622px;
+      transform: rotate(180deg);
+    }
+
+    .puzzle img {
+      position: absolute;
+      inset: -1.37% -1.37% -1.36% -1.36%;
+      width: 102.73%;
+      height: 102.73%;
+    }
+
+    /* Chip token */
+    .chip {
+      position: relative;
+      width: 27.349px;
+      height: 27.349px;
+    }
+
+    .chip .masked {
+      position: absolute;
+      -webkit-mask-image: url("./assets/chip-mask.svg");
+      mask-image: url("./assets/chip-mask.svg");
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-size: 306.83px 306.83px;
+      mask-size: 306.83px 306.83px;
+      mask-mode: alpha;
+    }
+
+    .chip .masked img,
+    .chip .part img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .chip .part { position: absolute; }
+
+    .chip .vip {
+      position: absolute;
+      left: 22.41%;
+      right: 23.24%;
+      top: 6.2px;
+      aspect-ratio: 1;
+      overflow: hidden;
+    }
+
+    /* Lucky wheel */
+    .wheel {
+      position: relative;
+      width: 41.787px;
+      height: 40.971px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+    }
+
+    .wheel-golden {
+      position: relative;
+      width: 41.612px;
+      height: 41.612px;
+    }
+
+    .wheel-stack {
+      position: absolute;
+      left: 0.43px;
+      top: 0.27px;
+      width: 40.748px;
+      height: 41.071px;
+    }
+
+    .wheel-stack .p { position: absolute; }
+    .wheel-stack .p > img { width: 100%; height: 100%; }
+
+    .wheel-stack .c {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ---------- Bottom buttons ---------- */
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 30px;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: var(--button-bg);
+      color: #fff;
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 16px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .action:active { transform: translateY(1px); }
+    .action:disabled { opacity: 0.6; cursor: default; }
+    .action.on { background: var(--popup-bg); }
+
+    .balls-input {
+      width: 2ch;
+      padding: 0;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      text-align: center;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .balls-input::-webkit-outer-spin-button,
+    .balls-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* =====================================================
+       BINGO BUTTON (from index_buttons.html, fixed above the tab bar)
+       ===================================================== */
+
+    /* Dial centre sits where the minigames FAB does: 47.5px from the
+       right edge, 111.5px from the bottom */
+    .bingo-button {
+      position: absolute;
+      right: 15.7px;
+      bottom: 72.55px;
+      z-index: 1;
+      width: 63.6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6.2px;
+      border: 0;
+      background: none;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform 0.08s;
+    }
+
+    .bingo-button:active { transform: scale(0.94); }
+
+    .bingo-button:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+      border-radius: 12px;
+    }
+
+    /* Dial layers, outside in: progress ring (5px), a hairline gap, the navy
+       disc, then the icon with ~1.5px of navy padding around it. */
+    .mg-dial {
+      position: relative;
+      width: 53.9px;
+      height: 53.9px;
+      margin-bottom: -2px;
+    }
+
+    .mg-dial img {
+      position: absolute;
+      inset: 7.25px;
+      width: calc(100% - 14.5px);
+      height: calc(100% - 14.5px);
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .mg-ring {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .mg-ring .disc { fill: #121642; }
+
+    .mg-ring path {
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+    }
+
+    .mg-ring .track { stroke: #fff; }
+
+    .mg-ring .fill {
+      stroke: #fed846;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+    }
+
+    .mg-value {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 7.3px);
+      transform: translateX(-50%);
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 10.861px;
+      letter-spacing: 0.19px;
+      text-shadow: 0 1px 0 #121642;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mg-counter {
+      position: relative;
+      height: 14px;
+      min-width: 29.2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 4px;
+      border-radius: 888px;
+      background: #5e69ff;
+      color: #fff;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 12.3px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen" id="screen">
+
+    <button class="bingo-button" id="reopenButton" aria-label="Open Bingo">
+      <span class="mg-dial">
+        <svg class="mg-ring" viewBox="0 0 53.9 53.9" aria-hidden="true">
+          <circle class="disc" cx="26.95" cy="26.95" r="21.2" />
+          <path class="track" d="M13.14 47.12A24.45 24.45 0 1 1 43.18 45.24" pathLength="100" />
+          <path class="fill" d="M13.14 47.12A24.45 24.45 0 1 1 43.18 45.24" pathLength="100" style="stroke-dashoffset: 91.67;" />
+        </svg>
+        <img src="./assets/bingo.png" alt="" />
+      </span>
+      <span class="mg-counter">3d 12h</span>
+      <span class="mg-value">1/12</span>
+    </button>
+
+    <div class="overlay" id="overlay">
+
+      <div class="popup-slot" id="popupSlot">
+        <div class="popup" id="popup">
+
+          <canvas id="riveCanvas"></canvas>
+          <div class="status" id="status">Loading…</div>
+
+          <!-- Header logo -->
+          <img class="logo" src="./logo.png" alt="Happy Hour Bingo" />
+
+          <button class="help-button" aria-label="Help"><img src="./assets/help.svg" alt="" /></button>
+
+          <button class="close-button" id="closeButton" aria-label="Close">
+            <span class="icon"><div><img src="./assets/close.svg" alt="" /></div></span>
+          </button>
+
+          <!-- Rewards panel -->
+          <div class="rewards">
+            <div class="panel">
+
+              <div class="tiles">
+
+                <div class="tile">
+                  <div class="tile-head outlined" style="background: #3cd98a;">LINE 1</div>
+                  <div class="reward-pill">
+                    <div class="cash-icon"><img src="./assets/cash.svg" alt="" /></div>
+                    <div class="reward-value outlined">$2.00</div>
+                  </div>
+                </div>
+
+                <div class="tile">
+                  <div class="tile-head outlined" style="background: #fed846;">LINE 2</div>
+                  <div class="reward-pill">
+                    <div class="token-box puzzle">
+                      <div><img src="./assets/puzzle-base.svg" alt="" /></div>
+                    </div>
+                    <div class="reward-value outlined">x2</div>
+                  </div>
+                </div>
+
+                <div class="tile">
+                  <div class="tile-head outlined" style="background: #ff43d0;">LINE 3</div>
+                  <div class="reward-pill">
+                    <div class="token-box">
+                      <div class="chip">
+                        <img class="abs" src="./assets/chip-group.svg" alt=""
+                             style="inset: -3.06% -3.15% -3.06% -3.06%; width: 106.21%; height: 106.12%;" />
+                        <div class="masked" style="inset: 1.35% 15.91% 11.81% 5.17%; -webkit-mask-position: -15.858px -4.156px; mask-position: -15.858px -4.156px;"><img src="./assets/chip-v1.svg" alt="" /></div>
+                        <div class="masked" style="inset: -0.44% 15.95% 11.8% -1.11%; -webkit-mask-position: 3.413px 1.336px; mask-position: 3.413px 1.336px;"><img src="./assets/chip-v2.svg" alt="" /></div>
+                        <div class="masked" style="inset: 11.65% 2.54% -0.33% 17.29%; -webkit-mask-position: -53.049px -35.75px; mask-position: -53.049px -35.75px;"><img src="./assets/chip-v3.svg" alt="" /></div>
+                        <div class="masked" style="inset: 9.77% 9.53% 11.04% 10.8%; -webkit-mask-position: -33.136px -29.973px; mask-position: -33.136px -29.973px;"><img src="./assets/chip-v4.svg" alt="" /></div>
+                        <div class="masked" style="inset: 27.06% 0.16% -0.32% 34.06%; -webkit-mask-position: -104.502px -83.021px; mask-position: -104.502px -83.021px;"><img src="./assets/chip-v5.svg" alt="" /></div>
+                        <div class="masked" style="inset: 12.96% 6.19% 4.66% 21.9%; -webkit-mask-position: -67.184px -39.764px; mask-position: -67.184px -39.764px;"><img src="./assets/chip-v6.svg" alt="" /></div>
+                        <div class="masked" style="inset: 10.72% 14.05% 12.25% 12.46%; -webkit-mask-position: -38.233px -32.882px; mask-position: -38.233px -32.882px; mix-blend-mode: screen;"><img src="./assets/chip-g3.svg" alt="" /></div>
+                        <div class="part" style="inset: 9.7% 22.01% 17.51% 8.04%;"><img src="./assets/chip-v7.svg" alt="" /></div>
+                        <div class="part" style="inset: 16.7% 7.9% 9.61% 21.28%;"><img src="./assets/chip-v8.svg" alt="" /></div>
+                        <div class="part" style="inset: 6.27% 19.16% 68.49% 54.45%;"><img src="./assets/chip-v9.svg" alt="" /></div>
+                        <div class="vip">
+                          <div class="part" style="inset: 8.33% 4.17% 12.5% 4.16%;"><img src="./assets/chip-vip.svg" alt="" /></div>
+                          <div class="part" style="inset: 8.33% 2.17% 12.53% 9.64%;"><img src="./assets/chip-vip-sub.svg" alt="" /></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="reward-value outlined">100</div>
+                  </div>
+                </div>
+
+                <div class="tile wheel-tile">
+                  <div class="tile-head outlined" style="background: #bf1dff;">LINE 4</div>
+                  <div class="wheel">
+                    <div class="wheel-golden">
+                      <div class="wheel-stack">
+                        <div class="p" style="left: 0; top: 2.04px; width: 39.031px; height: 39.031px;"><img src="./assets/wheel-e1.svg" alt="" /></div>
+                        <div class="p" style="left: 3.66px; top: 3.75px; width: 33.428px; height: 33.428px;"><img src="./assets/wheel-e2.svg" alt="" /></div>
+                        <div class="c" style="left: 5.87px; top: 5.99px; width: 28.327px; height: 29.473px;">
+                          <img src="./assets/wheel-g1.svg" alt="" style="width: 28.327px; height: 29.473px; transform: rotate(180deg) scaleY(-1);" />
+                        </div>
+                        <div class="c" style="left: 3.6px; top: 5.86px; width: 34.728px; height: 35.299px;">
+                          <img src="./assets/wheel-v11.svg" alt="" style="width: 24.12px; height: 26.284px; transform: rotate(-145.77deg);" />
+                        </div>
+                        <div class="p" style="left: 1.24px; top: 2.33px; width: 36.676px; height: 36.676px;"><img src="./assets/wheel-sub.svg" alt="" /></div>
+                        <div class="p" style="left: 30.63px; top: 27.87px; width: 5.163px; height: 6.233px;"><img src="./assets/wheel-g2.svg" alt="" /></div>
+                        <div class="p" style="left: 13.02px; top: 12.78px; width: 15.597px; height: 16.552px;"><img src="./assets/wheel-frame.svg" alt="" /></div>
+                        <div class="p" style="left: 6.91px; top: 0; width: 26.486px; height: 10.673px;"><img src="./assets/wheel-v12.svg" alt="" /></div>
+                        <div class="p" style="left: 9.36px; top: 1.75px; width: 21.772px; height: 4.492px;"><img src="./assets/wheel-v13.svg" alt="" /></div>
+                        <div class="c" style="left: 25.31px; top: 2.77px; width: 15.438px; height: 15.644px;">
+                          <img src="./assets/wheel-g3.svg" alt="" style="width: 12.107px; height: 12.434px; transform: rotate(18.58deg);" />
+                        </div>
+                      </div>
+                      <div class="c abs" style="left: 28.73px; top: 12.63px; width: 7.696px; height: 7.695px; display: flex; align-items: center; justify-content: center;">
+                        <img src="./assets/wheel-v14.svg" alt="" style="width: 5.439px; height: 5.457px; transform: rotate(47.72deg);" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="actions">
+                <button class="action" id="showMilestones" disabled>Show milestones</button>
+                <label class="action" for="ballsToDrop">
+                  <input class="balls-input" id="ballsToDrop" type="number" min="0" max="99" value="2" />
+                  <span>balls</span>
+                </label>
+                <button class="action" id="dropBalls" disabled>Drop balls</button>
+              </div>
+
+            </div>
+
+            <div class="rewards-tab"></div>
+            <div class="rewards-title outlined">Bingo Rewards</div>
+          </div>
+
+        </div>
+      </div>
+
+
+    </div>
+
+  </div>
+
+  <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./bingo-vybs.riv";
+    const VIEW_MODEL = "BingoVM";
+
+    const POPUP_W = 360;
+    const POPUP_H = 650;
+
+
+    const canvas = document.getElementById("riveCanvas");
+    const statusEl = document.getElementById("status");
+    const overlay = document.getElementById("overlay");
+    const popup = document.getElementById("popup");
+    const popupSlot = document.getElementById("popupSlot");
+
+    const ballsInput = document.getElementById("ballsToDrop");
+    const dropButton = document.getElementById("dropBalls");
+    const milestonesButton = document.getElementById("showMilestones");
+
+    let props = {};
+
+
+    // =====================================================
+    // LOAD RIVE
+    // =====================================================
+
+    const riveAnimation = new rive.Rive({
+
+      src: RIVE_SRC,
+      canvas: canvas,
+      // Default artboard; state machine is started in onLoad so the
+      // artboard's first timeline doesn't also play
+      autoplay: false,
+      autoBind: false,
+
+      layout: new rive.Layout({
+        fit: rive.Fit.Contain,
+        alignment: rive.Alignment.Center
+      }),
+
+      onLoad: () => {
+
+        const stateMachines = riveAnimation.stateMachineNames;
+        console.log("State machines in artboard:", stateMachines);
+
+        if (stateMachines.length) {
+          riveAnimation.play(stateMachines[0]);
+        }
+
+        const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
+
+        if (!viewModel) {
+          console.error(`${VIEW_MODEL} not found`);
+          statusEl.textContent = "View model not found";
+          return;
+        }
+
+        const vmi = viewModel.defaultInstance() || viewModel.instance();
+
+        riveAnimation.bindViewModelInstance(vmi);
+
+        props = {
+          ballsToDrop: vmi.number("ballsToDrop"),
+          dropBalls: vmi.trigger("dropBalls"),
+          showMilestones: vmi.boolean("showMilestones")
+        };
+
+        for (const [name, prop] of Object.entries(props)) {
+          if (!prop) {
+            console.error(`${name} not found on ${VIEW_MODEL}`);
+          }
+        }
+
+        // Seed the ball count from the view model
+        if (props.ballsToDrop) ballsInput.value = props.ballsToDrop.value;
+
+        dropButton.disabled = !props.dropBalls;
+        milestonesButton.disabled = !props.showMilestones;
+        renderMilestones();
+
+        statusEl.textContent = "";
+
+        resizeRive();
+
+        // Device-mode viewport changes can land right after load
+        requestAnimationFrame(resizeRive);
+        setTimeout(resizeRive, 100);
+
+      },
+
+      onLoadError: (err) => {
+        console.error("RIVE LOAD ERROR:", err);
+        statusEl.textContent = "Failed to load bingo";
+      }
+
+    });
+
+
+    // =====================================================
+    // CONTROLS
+    // =====================================================
+
+    function setBallsToDrop() {
+      if (!props.ballsToDrop) return;
+      props.ballsToDrop.value = Number(ballsInput.value) || 0;
+    }
+
+    ballsInput.addEventListener("input", setBallsToDrop);
+
+    dropButton.addEventListener("click", () => {
+      if (!props.dropBalls) return;
+      setBallsToDrop();
+      props.dropBalls.trigger();
+      console.log(`dropBalls fired (ballsToDrop = ${props.ballsToDrop?.value})`);
+    });
+
+    milestonesButton.addEventListener("click", () => {
+      if (!props.showMilestones) return;
+      props.showMilestones.value = !props.showMilestones.value;
+      renderMilestones();
+    });
+
+    function renderMilestones() {
+      const on = !!props.showMilestones?.value;
+      milestonesButton.classList.toggle("on", on);
+      milestonesButton.textContent = on ? "Hide milestones" : "Show milestones";
+    }
+
+    // =====================================================
+    // POPUP OPEN / CLOSE
+    // =====================================================
+
+    document.getElementById("closeButton").addEventListener("click", () => {
+      overlay.classList.add("hidden");
+    });
+
+    document.getElementById("reopenButton").addEventListener("click", () => {
+      overlay.classList.remove("hidden");
+      requestAnimationFrame(resizeRive);
+    });
+
+
+    // =====================================================
+    // RESIZE
+    // =====================================================
+
+    // Scale the popup to the screen width, pinned to the bottom
+    function fitPopup() {
+      const availW = overlay.clientWidth;
+      const availH = overlay.clientHeight;
+      const scale = Math.min(availW / POPUP_W, availH / POPUP_H);
+
+      popup.style.transform = `scale(${scale})`;
+      popupSlot.style.width = `${POPUP_W * scale}px`;
+      popupSlot.style.height = `${POPUP_H * scale}px`;
+    }
+
+    function resizeRive() {
+      fitPopup();
+      riveAnimation.resizeDrawingSurfaceToCanvas();
+    }
+
+    window.addEventListener("resize", resizeRive);
+
+    new ResizeObserver(resizeRive).observe(overlay);
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(resizeRive, 100);
+    });
+
+    fitPopup();
+
+  </script>
+
+</body>
+</html>
