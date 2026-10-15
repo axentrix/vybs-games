@@ -734,6 +734,7 @@
 
     const RIVE_SRC = "./bingo-vybs.riv";
     const VIEW_MODEL = "BingoVM";
+    const STATE_MACHINE = "State Machine 1";
 
     const POPUP_W = 360;
     const POPUP_H = 650;      // design height when there's room
@@ -762,10 +763,15 @@
 
       src: RIVE_SRC,
       canvas: canvas,
-      // Default artboard; state machine is started in onLoad so the
-      // artboard's first timeline doesn't also play
-      autoplay: false,
-      autoBind: false,
+      // Name the state machine up front. Without it the runtime also loads
+      // the artboard's first timeline (celebrate_hidden), which keeps
+      // forcing the celebration components to opacity 0
+      stateMachines: STATE_MACHINE,
+      autoplay: true,
+      // Bind BingoVM's default instance during load, before the BallTunnel
+      // script inits: it reads context:viewModel() once in init, and binding
+      // later leaves it without a view model (no stamps/lines/celebration)
+      autoBind: true,
 
       layout: new rive.Layout({
         fit: rive.Fit.Contain,
@@ -774,24 +780,13 @@
 
       onLoad: () => {
 
-        const stateMachines = riveAnimation.stateMachineNames;
-        console.log("State machines in artboard:", stateMachines);
+        const vmi = riveAnimation.viewModelInstance;
 
-        if (stateMachines.length) {
-          riveAnimation.play(stateMachines[0]);
-        }
-
-        const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
-
-        if (!viewModel) {
-          console.error(`${VIEW_MODEL} not found`);
+        if (!vmi) {
+          console.error(`${VIEW_MODEL} instance not bound`);
           statusEl.textContent = "View model not found";
           return;
         }
-
-        const vmi = viewModel.defaultInstance() || viewModel.instance();
-
-        riveAnimation.bindViewModelInstance(vmi);
 
         props = {
           ballsToDrop: vmi.number("ballsToDrop"),
