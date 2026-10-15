@@ -791,7 +791,8 @@
         props = {
           ballsToDrop: vmi.number("ballsToDrop"),
           dropBalls: vmi.trigger("dropBalls"),
-          showMilestones: vmi.boolean("showMilestones")
+          showMilestones: vmi.boolean("showMilestones"),
+          celebrating: vmi.boolean("celebrating")
         };
 
         for (const [name, prop] of Object.entries(props)) {
@@ -839,6 +840,8 @@
     dropButton.addEventListener("click", () => {
       if (!props.dropBalls) return;
       setBallsToDrop();
+      // A new drop ends any celebration still showing
+      if (props.celebrating?.value) props.celebrating.value = false;
       props.dropBalls.trigger();
       console.log(`dropBalls fired (ballsToDrop = ${props.ballsToDrop?.value})`);
     });
