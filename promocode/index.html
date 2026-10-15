@@ -1873,7 +1873,10 @@
     const VIEW_MODEL = "PromoVM";
 
     const AMOUNT_TEXT = "amountText";
+    // The AmountText script in promo.riv formats this number into amountText every frame.
+    const AMOUNT_NUMBER = "amount";
     const OPEN_TRIGGER = "open";
+    const ETP_BOOL = "etp";
 
     // promo.riv fires no event when the envelope finishes opening, so the reward
     // overlay starts after OPEN_ANIMATION_MS. If a Rive event named OPEN_END_EVENT
@@ -1894,8 +1897,9 @@
     const COUNT_DURATION_MS = 900;
     const OVERLAY_MS = 3500;
 
+    const PROMO_AMOUNT = 20000;
     const BALANCE_FROM = 5.50;
-    const BALANCE_TO = 35.50;
+    const BALANCE_TO = BALANCE_FROM + PROMO_AMOUNT;
 
     const VALID_CODE = "123456";
 
@@ -1975,6 +1979,13 @@
           } else {
             promoVM = vm.defaultInstance?.() || vm.instance?.();
             riveAnimation.bindViewModelInstance(promoVM);
+            const etp = promoVM.boolean(ETP_BOOL);
+            if (etp) etp.value = true;
+            else console.warn(ETP_BOOL + " boolean not found on " + VIEW_MODEL);
+
+            const amount = promoVM.number(AMOUNT_NUMBER);
+            if (amount) amount.value = PROMO_AMOUNT;
+            else console.warn(AMOUNT_NUMBER + " number not found on " + VIEW_MODEL);
             console.log(VIEW_MODEL + " bound");
           }
 
@@ -2048,7 +2059,7 @@
     }
 
     function showPromoCard() {
-      let amountText = "$" + (BALANCE_TO - BALANCE_FROM);
+      let amountText = "$" + PROMO_AMOUNT;
       try {
         amountText = promoVM.string(AMOUNT_TEXT).value || amountText;
       } catch (err) {

@@ -12,15 +12,17 @@
 
     :root {
       --white: #ffffff;
-      --popup-bg: radial-gradient(183.4% 49.1% at 50% 50.9%,
+      --overlay-bg: radial-gradient(183.4% 49.1% at 50% 50.9%,
         rgba(88, 71, 223, 0.88) 0%,
         rgba(71, 57, 185, 0.88) 22.351%,
         rgba(55, 42, 146, 0.88) 44.703%,
         rgba(38, 28, 108, 0.88) 67.054%,
         rgba(21, 13, 69, 0.88) 89.405%);
+      --popup-bg: radial-gradient(90.31% 46.71% at 51.47% 38.45%, #5639FD 0%, #140D45 100%);
       --yellow400: #fed846;
       --brand-dark: #1c1c1e;
-      --button-bg: #434ef0;
+      --button-bg: #4ad78c;
+      --button-text: #5d2fc8;
       --button-claimed-bg: linear-gradient(261.63deg, #ffa909 25.988%, #ff4188 82.108%);
     }
 
@@ -60,30 +62,44 @@
        POPUP (Level Up)
        ===================================================== */
 
-    .popup {
+    .overlay {
       width: 100%;
       height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--overlay-bg);
+      transition: opacity 0.3s ease;
+    }
+
+    .overlay.closing {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .popup {
+      position: relative;
+      width: 272px;
+      height: 484px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 12px;
+      border-radius: 16px;
       background: var(--popup-bg);
       filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.25));
       overflow: hidden;
-      transition: opacity 0.3s ease, transform 0.3s ease;
+      transition: transform 0.3s ease;
     }
 
-    .popup.closing {
-      opacity: 0;
+    .overlay.closing .popup {
       transform: scale(0.9);
-      pointer-events: none;
     }
 
+    /* The animation fills the whole popup; .bottom sits on top of it. */
     .artwork {
-      position: relative;
-      flex: 1 0 0;
-      min-height: 1px;
-      width: 100%;
+      position: absolute;
+      inset: 0;
     }
 
     #riveCanvas {
@@ -106,6 +122,8 @@
     }
 
     .bottom {
+      position: relative;
+      margin-top: auto;
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -122,7 +140,6 @@
       align-items: center;
       gap: 8px;
       padding: 13px 9px;
-      border: 1px solid #ccc;
       border-radius: 12px;
       background: linear-gradient(90deg, rgba(18, 18, 18, 0.22) 5.263%, rgba(18, 18, 18, 0.44) 100%);
     }
@@ -196,9 +213,9 @@
       height: 46px;
       padding: 0 24px;
       border: 0;
-      border-radius: 8px;
+      border-radius: 999px;
       background: var(--button-bg);
-      color: var(--white);
+      color: var(--button-text);
       font-family: inherit;
       font-weight: 500;
       font-size: 18px;
@@ -213,6 +230,7 @@
 
     .cta.claimed {
       background: var(--button-claimed-bg);
+      color: var(--white);
       cursor: default;
       transform: none;
       filter: none;
@@ -235,25 +253,27 @@
 <body>
 
   <div class="screen">
-    <div class="popup" id="popup" role="dialog" aria-modal="true" aria-label="Mystery box booster">
+    <div class="overlay" id="overlay">
+      <div class="popup" role="dialog" aria-modal="true" aria-label="Mystery box booster">
 
-      <div class="artwork">
-        <canvas id="riveCanvas"></canvas>
-        <div class="status" id="status">Loading…</div>
-      </div>
-
-      <div class="bottom">
-        <div class="expires">
-          <p class="expires-label">Booster expires in</p>
-          <div class="timer" id="timer">12h 5m</div>
+        <div class="artwork">
+          <canvas id="riveCanvas"></canvas>
+          <div class="status" id="status">Loading…</div>
         </div>
 
-        <div class="actions">
-          <span class="badge" id="activatedBadge" aria-live="polite">Activated</span>
-          <button class="cta" id="ctaBtn" disabled>Claim Booster</button>
-        </div>
-      </div>
+        <div class="bottom">
+          <div class="expires">
+            <p class="expires-label">Booster expires in</p>
+            <div class="timer" id="timer">12h 5m</div>
+          </div>
 
+          <div class="actions">
+            <span class="badge" id="activatedBadge" aria-live="polite">Activated</span>
+            <button class="cta" id="ctaBtn" disabled>Claim Booster</button>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -273,13 +293,12 @@
 
     const CLAIMED_BOOL = "is_claimed";
 
-    // Rive Event fired when the child state machine reaches Exit. The web
-    // runtime can't see nested state machine states, but nested events bubble up.
-    const END_EVENT = "animation_end";
+    // MagicVM trigger fired by the Rive file when the claim animation reaches Exit.
+    const END_TRIGGER = "animation_end";
 
-    // Max time the popup stays open after is_claimed is set. It closes on
-    // END_EVENT or this timeout, whichever comes first.
-    const CLAIM_ANIMATION_MS = 1500;
+    // The popup closes on END_TRIGGER. This is only a safety net in case it
+    // never fires, so keep it longer than the claim animation (~4.5s).
+    const CLAIM_FALLBACK_MS = 10000;
 
     const EXPIRES_IN_MS = (12 * 60 + 5) * 60 * 1000;
 
@@ -288,7 +307,7 @@
     const statusEl = document.getElementById("status");
     const ctaBtn = document.getElementById("ctaBtn");
     const timerEl = document.getElementById("timer");
-    const popupEl = document.getElementById("popup");
+    const overlayEl = document.getElementById("overlay");
     const badgeEl = document.getElementById("activatedBadge");
 
     let riveAnimation = null;
@@ -311,13 +330,14 @@
 
 
     function closePopup() {
-      if (popupEl.classList.contains("closing")) {
+      if (overlayEl.classList.contains("closing")) {
         return;
       }
-      popupEl.classList.add("closing");
-      popupEl.addEventListener("transitionend", () => {
-        popupEl.style.display = "none";
-      }, { once: true });
+      overlayEl.classList.add("closing");
+      // The popup's own scale transition also bubbles up here, so wait for the overlay's fade.
+      overlayEl.addEventListener("transitionend", (e) => {
+        if (e.target === overlayEl) overlayEl.style.display = "none";
+      });
     }
 
 
@@ -332,7 +352,7 @@
       stateMachines: STATE_MACHINE,
       autoplay: true,
       layout: new rive.Layout({
-        fit: rive.Fit.Contain,
+        fit: rive.Fit.Cover,
         alignment: rive.Alignment.Center,
       }),
 
@@ -354,14 +374,16 @@
               badgeEl.classList.add("show");
             }
           });
-        }
 
-        riveAnimation.on(rive.EventType.RiveEvent, (event) => {
-          console.log("Rive event:", event.data?.name);
-          if (isClaimed && event.data?.name === END_EVENT) {
-            closePopup();
-          }
-        });
+          const end = magicVM.trigger(END_TRIGGER);
+          if (!end) console.warn(END_TRIGGER + " trigger not found on " + VIEW_MODEL);
+          end?.on(() => {
+            console.log(END_TRIGGER + " fired");
+            if (isClaimed) {
+              closePopup();
+            }
+          });
+        }
 
         statusEl.style.display = "none";
         ctaBtn.disabled = false;
@@ -388,7 +410,7 @@
       ctaBtn.classList.add("claimed");
       setBoolean(CLAIMED_BOOL, true);
 
-      setTimeout(closePopup, CLAIM_ANIMATION_MS);
+      setTimeout(closePopup, CLAIM_FALLBACK_MS);
     });
 
 
