@@ -21,15 +21,18 @@
       justify-content: center;
     }
 
+    img { display: block; }
+
     /* =====================================================
-       CANVAS WRAPPER
+       FRAME
        ===================================================== */
 
     /* Desktop: fixed phone-sized frame */
-    .canvas-wrapper {
+    .frame {
       position: relative;
       width: 393px;
       height: 852px;
+      max-height: 100dvh;
       border-radius: 28px;
       overflow: hidden;
       background-color: #14122b;
@@ -38,16 +41,18 @@
 
     /* Mobile: edge to edge, full screen */
     @media (max-width: 480px) {
-      .canvas-wrapper {
+      .frame {
         width: 100vw;
         height: 100vh;
         height: 100dvh;
+        max-height: none;
         border-radius: 0;
         box-shadow: none;
       }
     }
 
-    #riveCanvas {
+    #riveCanvas,
+    #currencyCanvas {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -61,7 +66,7 @@
       left: 0;
       right: 0;
       bottom: 24px;
-      z-index: 2;
+      z-index: 30;
       text-align: center;
       color: #fff;
       font-size: 14px;
@@ -70,62 +75,103 @@
     }
 
     /* =====================================================
-       START OVERLAY
+       SPLASH
+       ===================================================== */
+
+    .splash {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+    }
+
+    .splash img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* =====================================================
+       OVERLAYS (shield, result, reward)
        ===================================================== */
 
     .overlay {
       position: absolute;
       inset: 0;
-      z-index: 3;
+      z-index: 10;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(5, 4, 18, 0.85);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      padding: 16px;
+      background: rgba(5, 4, 18, 0.7);
+      opacity: 0;
       transition: opacity 0.3s ease;
     }
 
-    .overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
+    .overlay.show { opacity: 1; }
+    .overlay[hidden] { display: none; }
 
-    .start-button {
-      padding: 16px 36px;
-      font-size: 18px;
-      font-weight: 700;
-      color: #fff;
-      background: linear-gradient(180deg, #7b5cff 0%, #5236d6 100%);
+    .card {
       border: none;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(82, 54, 214, 0.5);
+      background: none;
       cursor: pointer;
     }
 
-    .start-button:active {
-      transform: scale(0.97);
+    .card img {
+      width: 284px;
+      max-width: 100%;
+      height: auto;
     }
 
-    .start-button:disabled {
-      opacity: 0.5;
-      cursor: default;
+    .card:active { transform: scale(0.98); }
+
+    .card:focus-visible {
+      outline: 3px solid rgba(255, 255, 255, 0.6);
+      outline-offset: 4px;
+      border-radius: 16px;
     }
 
-    .start-button:focus-visible {
-      outline: 3px solid rgba(123, 92, 255, 0.6);
-      outline-offset: 3px;
+    .result img {
+      width: 284px;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Plays over the result, transparent so the result shows through */
+    .reward-overlay {
+      z-index: 20;
+      padding: 0;
+      background: none;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <div class="canvas-wrapper">
+  <div class="frame" id="frame">
+
     <canvas id="riveCanvas"></canvas>
-    <div class="status" id="status">Loading…</div>
-    <div class="overlay" id="overlay">
-      <button class="start-button" id="startButton" disabled>Start Elevator</button>
+
+    <div class="splash" id="splash">
+      <img src="./Splash.png" alt="Elevator" />
     </div>
+
+    <div class="overlay" id="shieldOverlay" hidden>
+      <button class="card" id="shieldButton" aria-label="Start">
+        <img src="./shield.png" alt="" />
+      </button>
+    </div>
+
+    <div class="overlay result" id="resultOverlay" hidden>
+      <img id="resultImage" alt="" />
+    </div>
+
+    <div class="overlay reward-overlay" id="rewardOverlay" hidden>
+      <canvas id="currencyCanvas"></canvas>
+    </div>
+
+    <div class="status" id="status"></div>
+
   </div>
 
   <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
@@ -142,93 +188,299 @@
     const VIEW_MODEL = "ElevatorVM";
     const START_TRIGGER = "startMovingTrigger";
 
+    // Splash stays alone this long before the shield overlay appears
+    const SHIELD_DELAY_MS = 2000;
 
+    // Lets the Rive ending (explosion, arrival, leave) play before the
+    // result image covers it
+    const END_DELAY_MS = 2000;
+
+    // A bomb within this long of the shield turning on or being used up
+    // counts as blocked, and isFail is re-checked after it before game over
+    const SHIELD_GRACE_MS = 1000;
+
+    const RESULT_IMAGES = {
+      left: "./gameleft.png",
+      over: "./gameover.png",
+      completed: "./gamecompleted.png"
+    };
+
+    const CURRENCY_SRC = "./trial_currency.riv";
+    const CURRENCY_VM = "CurrencyVM";
+    const CONFETTI_COUNT = 30;
+    // Size of the flying tokens relative to their size in the Rive file.
+    // The artboard is resized to the screen (Fit.Layout), so this scales only the content.
+    const TOKEN_SCALE = 0.6;
+    // The reward overlay closes this long after it opens
+    const REWARD_MS = 3500;
+
+
+    const frame = document.getElementById("frame");
     const canvas = document.getElementById("riveCanvas");
     const statusEl = document.getElementById("status");
-    const overlay = document.getElementById("overlay");
-    const startButton = document.getElementById("startButton");
+    const splash = document.getElementById("splash");
+    const shieldOverlay = document.getElementById("shieldOverlay");
+    const shieldButton = document.getElementById("shieldButton");
+    const resultOverlay = document.getElementById("resultOverlay");
+    const resultImage = document.getElementById("resultImage");
+    const rewardOverlay = document.getElementById("rewardOverlay");
+    const currencyCanvas = document.getElementById("currencyCanvas");
 
-    let startTrigger = null;
+    let riveAnimation = null;
+    let currencyAnimation = null;
+    let vmi = null;
+    let ended = false;
+    let lastShieldAt = -Infinity;
 
 
     // =====================================================
-    // LOAD RIVE
+    // OVERLAY HELPERS
     // =====================================================
 
-    const riveAnimation = new rive.Rive({
+    function showOverlay(el) {
+      el.hidden = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
+    }
 
-      src: RIVE_SRC,
-      canvas: canvas,
-      artboard: ARTBOARD,
-      // Must be set here: without it the runtime also plays the artboard's
-      // first timeline, which fights the state machine (boxes never show)
-      stateMachine: STATE_MACHINE,
-      autoplay: true,
-      autoBind: false,
+    function hideOverlay(el, done) {
+      el.classList.remove("show");
+      el.addEventListener("transitionend", () => {
+        el.hidden = true;
+        done?.();
+      }, { once: true });
+    }
 
-      layout: new rive.Layout({
-        fit: rive.Fit.Cover,
-        alignment: rive.Alignment.Center
-      }),
 
-      onLoad: () => {
+    // =====================================================
+    // SPLASH -> SHIELD -> ELEVATOR
+    // =====================================================
 
-        console.log("State machines in artboard:", riveAnimation.stateMachineNames);
-        console.log("Playing state machine:", STATE_MACHINE);
+    setTimeout(() => showOverlay(shieldOverlay), SHIELD_DELAY_MS);
 
-        const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
-
-        if (!viewModel) {
-          console.error(`${VIEW_MODEL} not found`);
-          statusEl.textContent = "View model not found";
-          return;
-        }
-
-        const vmi = viewModel.defaultInstance() || viewModel.instance();
-
-        riveAnimation.bindViewModelInstance(vmi);
-
-        startTrigger = vmi.trigger(START_TRIGGER);
-
-        if (!startTrigger) {
-          console.error(`${START_TRIGGER} not found on ${VIEW_MODEL}`);
-        }
-
-        startButton.disabled = !startTrigger;
-        statusEl.textContent = "";
-
-        resizeRive();
-
-        // Device-mode viewport changes can land right after load
-        requestAnimationFrame(resizeRive);
-        setTimeout(resizeRive, 100);
-
-      },
-
-      onLoadError: (err) => {
-        console.error("RIVE LOAD ERROR:", err);
-        statusEl.textContent = "Failed to load elevator";
-      }
-
+    shieldButton.addEventListener("click", () => {
+      if (riveAnimation) return;
+      statusEl.textContent = "Loading…";
+      loadElevator();
     });
 
 
     // =====================================================
-    // START
+    // LOAD ELEVATOR
     // =====================================================
 
-    startButton.addEventListener("click", () => {
+    function loadElevator() {
 
-      if (!startTrigger) {
+      riveAnimation = new rive.Rive({
+
+        src: RIVE_SRC,
+        canvas: canvas,
+        artboard: ARTBOARD,
+        // Must be set here: without it the runtime also plays the artboard's
+        // first timeline, which fights the state machine (boxes never show)
+        stateMachines: STATE_MACHINE,
+        autoplay: true,
+        autoBind: false,
+
+        layout: new rive.Layout({
+          fit: rive.Fit.Cover,
+          alignment: rive.Alignment.Center
+        }),
+
+        onLoad: () => {
+
+          const viewModel = riveAnimation.viewModelByName(VIEW_MODEL);
+
+          if (!viewModel) {
+            console.error(`${VIEW_MODEL} not found`);
+            statusEl.textContent = "View model not found";
+            return;
+          }
+
+          vmi = viewModel.defaultInstance() || viewModel.instance();
+          riveAnimation.bindViewModelInstance(vmi);
+
+          watchGame();
+
+          // Nothing in the Rive file starts the trip on its own
+          const startTrigger = vmi.trigger(START_TRIGGER);
+          if (startTrigger) {
+            startTrigger.trigger();
+            console.log(`${START_TRIGGER} fired`);
+          } else {
+            console.error(`${START_TRIGGER} not found on ${VIEW_MODEL}`);
+          }
+
+          statusEl.textContent = "";
+          resizeRive();
+          requestAnimationFrame(resizeRive);
+
+          // Reveal the elevator only once it has drawn
+          splash.hidden = true;
+          hideOverlay(shieldOverlay);
+
+        },
+
+        onLoadError: (err) => {
+          console.error("RIVE LOAD ERROR:", err);
+          statusEl.textContent = "Failed to load elevator";
+          riveAnimation = null;
+        }
+
+      });
+
+    }
+
+
+    // =====================================================
+    // GAME ENDINGS
+    // =====================================================
+
+    // Calls back when a trigger fires, or when a boolean turns true
+    function onFire(name, callback) {
+      const trigger = vmi.trigger(name);
+      if (trigger) {
+        trigger.on(callback);
         return;
       }
+      const flag = vmi.boolean(name);
+      if (flag) {
+        flag.on(() => { if (flag.value) callback(); });
+        return;
+      }
+      console.warn(`${name} not found on ${VIEW_MODEL}`);
+    }
 
-      startTrigger.trigger();
-      console.log(`${START_TRIGGER} fired`);
+    function watchGame() {
 
-      overlay.classList.add("hidden");
+      // Leave button in Rive
+      onFire("leaveTrigger", () => endGame("left"));
 
-    });
+      // Shield: note when it's switched on or used up, so a bomb it
+      // blocks doesn't end the game
+      const hasShield = vmi.boolean("hasShield");
+      hasShield?.on(() => { lastShieldAt = performance.now(); });
+      onFire("shieldOnTrigger", () => { lastShieldAt = performance.now(); });
+
+      // Bomb
+      const isFail = vmi.boolean("isFail");
+      isFail?.on(() => {
+        if (!isFail.value || shielded()) return;
+        // Check again once the bomb has resolved: the shield may have
+        // kicked in, or the script may have cleared isFail
+        setTimeout(() => {
+          // The re-check already used up part of the delay
+          if (isFail.value && !shielded()) endGame("over", END_DELAY_MS - SHIELD_GRACE_MS);
+        }, SHIELD_GRACE_MS);
+      });
+
+      // Last floor reached
+      const currentFloor = vmi.number("currentFloor");
+      const maxFloor = vmi.number("maxFloor");
+      currentFloor?.on(() => {
+        if (maxFloor?.value > 0 && currentFloor.value >= maxFloor.value) {
+          endGame("completed");
+        }
+      });
+
+    }
+
+    function shielded() {
+      return !!vmi.boolean("hasShield")?.value
+        || performance.now() - lastShieldAt < SHIELD_GRACE_MS;
+    }
+
+    function readNumber(name) {
+      return vmi.number(name)?.value || 0;
+    }
+
+    function totalWon() {
+      return readNumber("totalDollars") + readNumber("totalVpx") + readNumber("totalBooster");
+    }
+
+    function endGame(kind, delay = END_DELAY_MS) {
+      if (ended) return;
+      ended = true;
+
+      // A bomb takes everything, so only leaving or finishing pays out
+      const won = kind !== "over" && totalWon() > 0;
+      console.log(`game ${kind}${won ? `, won ${totalWon()}` : ""}`);
+
+      setTimeout(() => {
+        resultImage.src = RESULT_IMAGES[kind];
+        showOverlay(resultOverlay);
+        if (won) showReward();
+      }, delay);
+    }
+
+
+    // =====================================================
+    // REWARD OVERLAY (trial_currency.riv)
+    // =====================================================
+
+    function setNumber(target, name, value) {
+      try {
+        target.number(name).value = value;
+      } catch (err) {
+        console.warn("Could not set number:", name, err);
+      }
+    }
+
+    function hideReward() {
+      hideOverlay(rewardOverlay, () => {
+        currencyAnimation?.cleanup();
+        currencyAnimation = null;
+      });
+    }
+
+    function showReward() {
+
+      rewardOverlay.hidden = false;
+
+      currencyAnimation = new rive.Rive({
+        src: CURRENCY_SRC,
+        canvas: currencyCanvas,
+        stateMachines: "State Machine 1",
+        autoplay: true,
+        layout: new rive.Layout({
+          fit: rive.Fit.Layout,
+          layoutScaleFactor: TOKEN_SCALE,
+          alignment: rive.Alignment.Center
+        }),
+
+        onLoad: () => {
+          currencyAnimation.resizeDrawingSurfaceToCanvas();
+          requestAnimationFrame(() => rewardOverlay.classList.add("show"));
+          setTimeout(hideReward, REWARD_MS);
+
+          const vm = currencyAnimation.viewModelByName?.(CURRENCY_VM);
+          if (!vm) {
+            console.warn(CURRENCY_VM + " not found");
+            return;
+          }
+
+          const currencyVM = vm.defaultInstance?.() || vm.instance?.();
+          currencyAnimation.bindViewModelInstance(currencyVM);
+
+          // Trail runs from the middle of the screen up to the top.
+          // With Fit.Layout the artboard spans the whole canvas.
+          const w = currencyAnimation.artboardWidth;
+          const h = currencyAnimation.artboardHeight;
+          setNumber(currencyVM, "startX", w / 2);
+          setNumber(currencyVM, "startY", h / 2);
+          setNumber(currencyVM, "endX", w / 2);
+          setNumber(currencyVM, "endY", h * 0.08);
+          setNumber(currencyVM, "confettiCount", CONFETTI_COUNT);
+
+          currencyVM.trigger("confettiTrigger")?.trigger();
+        },
+
+        onLoadError: (err) => {
+          console.error("[rive] failed to load currency:", err);
+          rewardOverlay.hidden = true;
+        }
+      });
+
+    }
 
 
     // =====================================================
@@ -236,12 +488,13 @@
     // =====================================================
 
     function resizeRive() {
-      riveAnimation.resizeDrawingSurfaceToCanvas();
+      riveAnimation?.resizeDrawingSurfaceToCanvas();
+      currencyAnimation?.resizeDrawingSurfaceToCanvas();
     }
 
     window.addEventListener("resize", resizeRive);
 
-    new ResizeObserver(resizeRive).observe(canvas);
+    new ResizeObserver(resizeRive).observe(frame);
 
     window.addEventListener("orientationchange", () => {
       setTimeout(resizeRive, 100);
