@@ -73,10 +73,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
+      justify-content: center;
       padding: 0;
-      background: rgba(5, 4, 18, 0.6);
+      background: var(--popup-bg);
       transition: opacity 0.25s ease;
     }
 
@@ -92,7 +91,7 @@
     }
 
     /* =====================================================
-       POPUP (Figma 8009:62585, 360 wide; shortened to a bottom sheet)
+       POPUP (Figma 8009:62585, 360 wide; stretched to full screen height)
        ===================================================== */
 
     .popup {
@@ -101,20 +100,24 @@
       left: 0;
       width: 360px;
       height: 650px;
-      transform-origin: top left;
       background: var(--popup-bg);
-      border-radius: 12px 12px 0 0;
       overflow: hidden;
+      /* Logo, Rive canvas and rewards stack top to bottom */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: -22px;
+      padding: 13px 0 16px;
     }
 
+    /* Full width; height follows the artboard's aspect ratio (set on load),
+       capped so logo + canvas + rewards fit: 100% minus logo (~105px),
+       two 16px gaps and the 156px rewards panel. ~458px on a 393x852 screen */
     #riveCanvas {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      bottom: 0;
+      flex: none;
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-height: calc(100% - 105px - 32px - 156px);
       display: block;
       touch-action: none;
     }
@@ -136,12 +139,9 @@
     /* ---------- Header logo ---------- */
 
     .logo {
-      position: absolute;
-      left: 50%;
-      top: 13px;
+      flex: none;
       width: 160px;
       height: auto;
-      transform: translateX(-50%);
     }
 
     /* ---------- Corner buttons ---------- */
@@ -201,12 +201,12 @@
 
     /* ---------- Rewards panel ---------- */
 
+    /* Pushed to the bottom; relative so the tab and title can hang off it */
     .rewards {
-      position: absolute;
-      left: calc(50% - 0.34px);
-      bottom: 16px;
+      position: relative;
+      flex: none;
+      margin-top: auto;
       width: 312px;
-      transform: translateX(-50%);
     }
 
     .rewards-tab {
@@ -607,11 +607,11 @@
       <div class="popup-slot" id="popupSlot">
         <div class="popup" id="popup">
 
-          <canvas id="riveCanvas"></canvas>
-          <div class="status" id="status">Loading…</div>
-
           <!-- Header logo -->
           <img class="logo" src="./logo.png" alt="Happy Hour Bingo" />
+
+          <canvas id="riveCanvas"></canvas>
+          <div class="status" id="status">Loading…</div>
 
           <button class="help-button" aria-label="Help"><img src="./assets/help.svg" alt="" /></button>
 
@@ -737,9 +737,7 @@
     const STATE_MACHINE = "State Machine 1";
 
     const POPUP_W = 360;
-    const POPUP_H = 650;      // design height when there's room
     const POPUP_MIN_H = 480;  // below this, shrink the whole popup instead
-    const POPUP_TOP_GAP = 40; // page left visible above the popup
 
 
     const canvas = document.getElementById("riveCanvas");
@@ -774,11 +772,17 @@
       autoBind: true,
 
       layout: new rive.Layout({
+        // Contain: same as fit-width until max-height caps the canvas, then
+        // the artboard shrinks to fit instead of being cropped
         fit: rive.Fit.Contain,
-        alignment: rive.Alignment.Center
+        alignment: rive.Alignment.TopCenter
       }),
 
       onLoad: () => {
+
+        // Size the canvas to the artboard's aspect ratio so height is auto
+        const { minX, minY, maxX, maxY } = riveAnimation.bounds;
+        canvas.style.aspectRatio = `${maxX - minX} / ${maxY - minY}`;
 
         const vmi = riveAnimation.viewModelInstance;
 
@@ -876,16 +880,18 @@
     // RESIZE
     // =====================================================
 
-    // Scale the popup to the screen width, pinned to the bottom. On short
-    // browsers the popup gets shorter instead (the Rive area absorbs it), so
-    // it always fits the visible height with some of the page showing above.
+    // Scale the popup to the screen width and stretch it to the full screen
+    // height (the Rive area absorbs the extra). On very short browsers the
+    // whole popup shrinks instead so it never drops below POPUP_MIN_H.
     function fitPopup() {
       const availW = overlay.clientWidth;
-      const availH = overlay.clientHeight - POPUP_TOP_GAP;
+      const availH = overlay.clientHeight;
       const scale = Math.min(availW / POPUP_W, availH / POPUP_MIN_H);
-      const height = Math.min(POPUP_H, availH / scale);
+      const height = availH / scale;
 
-      popup.style.transform = `scale(${scale})`;
+      // zoom, not transform: scale(), so the canvas is laid out at its real
+      // pixel size. A transform resamples the Rive bitmap and blurs it
+      popup.style.zoom = scale;
       popup.style.height = `${height}px`;
       popupSlot.style.width = `${POPUP_W * scale}px`;
       popupSlot.style.height = `${height * scale}px`;
