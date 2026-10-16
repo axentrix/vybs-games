@@ -37,6 +37,8 @@
       overflow: hidden;
       background-color: #14122b;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      /* Lets the top bar scale with the frame width (cqw) */
+      container-type: size;
     }
 
     /* Mobile: edge to edge, full screen */
@@ -72,6 +74,56 @@
       font-size: 14px;
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
       pointer-events: none;
+    }
+
+    /* =====================================================
+       TOP BAR (Figma 8075:211832, in a 311-wide frame; scaled to the frame
+       width with --u = 1 design px)
+       ===================================================== */
+
+    .top-bar {
+      --u: calc(100cqw / 311);
+      position: absolute;
+      top: calc(17 * var(--u));
+      left: calc(17 * var(--u));
+      right: calc(17 * var(--u));
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .top-bar[hidden] { display: none; }
+
+    .utility-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(19.852 * var(--u));
+      height: calc(19.852 * var(--u));
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.12);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .utility-button:active { transform: scale(0.94); }
+
+    .utility-button:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+
+    .utility-button .back {
+      width: calc(6.52 * var(--u));
+      height: calc(6.52 * var(--u));
+    }
+
+    .utility-button .help {
+      width: calc(4.223 * var(--u));
+      height: calc(6.334 * var(--u));
     }
 
     /* =====================================================
@@ -152,6 +204,16 @@
 
     <canvas id="riveCanvas"></canvas>
 
+    <!-- Shown over the Rive screen once it loads -->
+    <div class="top-bar" id="topBar" hidden>
+      <button class="utility-button" id="backButton" aria-label="Back">
+        <img class="back" src="./assets/back.svg" alt="" />
+      </button>
+      <button class="utility-button" id="helpButton" aria-label="Help">
+        <img class="help" src="./assets/help.svg" alt="" />
+      </button>
+    </div>
+
     <div class="splash" id="splash">
       <img src="./Splash.png" alt="Elevator" />
     </div>
@@ -219,6 +281,7 @@
     const canvas = document.getElementById("riveCanvas");
     const statusEl = document.getElementById("status");
     const splash = document.getElementById("splash");
+    const topBar = document.getElementById("topBar");
     const shieldOverlay = document.getElementById("shieldOverlay");
     const shieldButton = document.getElementById("shieldButton");
     const resultOverlay = document.getElementById("resultOverlay");
@@ -316,6 +379,7 @@
 
           // Reveal the elevator only once it has drawn
           splash.hidden = true;
+          topBar.hidden = false;
           hideOverlay(shieldOverlay);
 
         },
