@@ -84,7 +84,7 @@
     .top-bar {
       --u: calc(100cqw / 311);
       position: absolute;
-      top: calc(17 * var(--u));
+      top: calc(50 * var(--u));
       left: calc(17 * var(--u));
       right: calc(17 * var(--u));
       z-index: 6;
@@ -250,6 +250,11 @@
     const VIEW_MODEL = "ElevatorVM";
     const START_TRIGGER = "startMovingTrigger";
 
+    // Every Nth floor is a safe floor (no bombs, shown in the background).
+    // 0 turns safe floors off. ?safeEvery=4 in the URL overrides it.
+    const SAFE_FLOOR_EVERY =
+      Number(new URLSearchParams(location.search).get("safeEvery") ?? 5);
+
     // Splash stays alone this long before the shield overlay appears
     const SHIELD_DELAY_MS = 2000;
 
@@ -361,6 +366,13 @@
 
           vmi = viewModel.defaultInstance() || viewModel.instance();
           riveAnimation.bindViewModelInstance(vmi);
+
+          const safeFloorEvery = vmi.number("safeFloorEvery");
+          if (safeFloorEvery) {
+            safeFloorEvery.value = SAFE_FLOOR_EVERY;
+          } else {
+            console.warn(`safeFloorEvery not found on ${VIEW_MODEL}`);
+          }
 
           watchGame();
 
