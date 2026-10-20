@@ -307,6 +307,8 @@
     const GAME_OVER_SOUND = "game_over.aac";
     // Ending trigger or boolean -> sound, and the music fades out
     const END_SOUND_ON = {
+      // Fires right after the Leave button in the cashout popup
+      astronautFlyAway: "happy_end.aac",
       allFloorsDone: "happy_end.aac"
     };
     const MUSIC_FADE_S = 1.5;
@@ -610,7 +612,9 @@
       });
     }
 
+    // Only the first ending gets a sound
     function playEndSound(name, file) {
+      if (musicEnded) return;
       console.log(`${name}: playing ${file}, fading music`);
       fadeOutMusic();
       playSound(file);
