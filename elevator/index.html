@@ -121,6 +121,17 @@
       height: calc(6.52 * var(--u));
     }
 
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: calc(6 * var(--u));
+    }
+
+    .utility-button .sound {
+      width: calc(9 * var(--u));
+      height: calc(9 * var(--u));
+    }
+
     .utility-button .help {
       width: calc(4.223 * var(--u));
       height: calc(6.334 * var(--u));
@@ -206,9 +217,14 @@
 
     <!-- Shown over the Rive screen once it loads -->
     <div class="top-bar" id="topBar" hidden>
-      <button class="utility-button" id="backButton" aria-label="Back">
-        <img class="back" src="./assets/back.svg" alt="" />
-      </button>
+      <div class="top-bar-left">
+        <button class="utility-button" id="backButton" aria-label="Back">
+          <img class="back" src="./assets/back.svg" alt="" />
+        </button>
+        <button class="utility-button" id="soundButton" aria-label="Mute sound" aria-pressed="false">
+          <img class="sound" id="soundIcon" src="./assets/sound-on.svg" alt="" />
+        </button>
+      </div>
       <button class="utility-button" id="helpButton" aria-label="Help">
         <img class="help" src="./assets/help.svg" alt="" />
       </button>
@@ -255,16 +271,45 @@
     const SAFE_FLOOR_EVERY =
       Number(new URLSearchParams(location.search).get("safeEvery") ?? 5);
 
+    // Seconds the boxes wait on a safe floor, so the safe floor reveal plays
+    // first. 0 shows them right away. ?safeBoxesDelay=2 in the URL overrides it.
+    const SAFE_FLOOR_BOXES_DELAY =
+      Number(new URLSearchParams(location.search).get("safeBoxesDelay") ?? 1.5);
+
     // Splash stays alone this long before the shield overlay appears
     const SHIELD_DELAY_MS = 2000;
 
-    // Lets the Rive ending (explosion, arrival, leave) play before the
-    // result image covers it
-    const END_DELAY_MS = 2000;
+    // Once the game ends, the result shows on the next tap. Taps this soon
+    // after the end are ignored, so the tap that ended it doesn't count.
+    const END_TAP_ARM_MS = 500;
 
     // A bomb within this long of the shield turning on or being used up
     // counts as blocked, and isFail is re-checked after it before game over
     const SHIELD_GRACE_MS = 1000;
+
+    const SOUND_DIR = "./music/";
+    // Loops from the moment the elevator starts
+    const BG_MUSIC = "bg_music.m4a";
+    const BG_MUSIC_VOLUME = 0.3;
+    const SFX_VOLUME = 0.6;
+    // ElevatorVM trigger or boolean (on turning true) -> sound
+    const SOUND_ON = {
+      isLeaving: "astronaut_leave.aac",
+      isSafeFloor: "safe_floor.aac",
+      shieldOnTrigger: "shield.aac",
+      doorClose: "door_closes.aac",
+      doorOpen: "door_opens.mp3",
+      isOpened: "reward_open.aac",
+      collect: "reward_fly.aac"
+    };
+    // isFail turning true without a shield: both play and the music fades out
+    const BOMB_SOUND = "bomb.aac";
+    const GAME_OVER_SOUND = "game_over.aac";
+    // Ending trigger or boolean -> sound, and the music fades out
+    const END_SOUND_ON = {
+      allFloorsDone: "happy_end.aac"
+    };
+    const MUSIC_FADE_S = 1.5;
 
     const RESULT_IMAGES = {
       left: "./gameleft.png",
@@ -320,6 +365,84 @@
 
 
     // =====================================================
+    // SOUND
+    // =====================================================
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Every sound goes through this, so muting is one switch
+    const masterGain = audioContext.createGain();
+    masterGain.connect(audioContext.destination);
+    const sounds = {};
+    let musicWanted = false;
+    let musicStarted = false;
+    let musicEnded = false;
+    let music = null;
+
+    // Fetched and decoded up front so the first play isn't late
+    const soundFiles = [BG_MUSIC, BOMB_SOUND, GAME_OVER_SOUND, ...Object.values(SOUND_ON), ...Object.values(END_SOUND_ON)];
+    for (const file of new Set(soundFiles)) {
+      fetch(SOUND_DIR + file)
+        .then((res) => res.arrayBuffer())
+        .then((data) => audioContext.decodeAudioData(data))
+        .then((buffer) => {
+          sounds[file] = buffer;
+          if (file === BG_MUSIC && musicWanted) startMusic();
+        })
+        .catch((err) => console.warn(`Could not load ${file}:`, err));
+    }
+
+    function playSound(file, volume = SFX_VOLUME, loop = false) {
+      const buffer = sounds[file];
+      if (!buffer) return;
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.loop = loop;
+      const gain = audioContext.createGain();
+      gain.gain.value = volume;
+      source.connect(gain).connect(masterGain);
+      source.start();
+      return { source, gain };
+    }
+
+    // Top bar button: mutes everything, music keeps running silently
+    const soundButton = document.getElementById("soundButton");
+    const soundIcon = document.getElementById("soundIcon");
+
+    soundButton.addEventListener("click", () => {
+      const muted = masterGain.gain.value > 0;
+      masterGain.gain.value = muted ? 0 : 1;
+      soundIcon.src = muted ? "./assets/sound-off.svg" : "./assets/sound-on.svg";
+      soundButton.setAttribute("aria-pressed", String(muted));
+      soundButton.setAttribute("aria-label", muted ? "Unmute sound" : "Mute sound");
+    });
+
+    // Must first run from a tap: browsers keep audio locked until then
+    function startMusic() {
+      musicWanted = true;
+      audioContext.resume();
+      if (musicStarted || musicEnded || !sounds[BG_MUSIC]) return;
+      musicStarted = true;
+      music = playSound(BG_MUSIC, BG_MUSIC_VOLUME, true);
+    }
+
+    function fadeOutMusic() {
+      musicEnded = true;
+      if (!music) return;
+      const now = audioContext.currentTime;
+      music.gain.gain.setValueAtTime(music.gain.gain.value, now);
+      music.gain.gain.linearRampToValueAtTime(0, now + MUSIC_FADE_S);
+      music.source.stop(now + MUSIC_FADE_S);
+      music = null;
+    }
+
+    // Quiet while the tab is in the background
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) audioContext.suspend();
+      else if (musicWanted) audioContext.resume();
+    });
+
+
+    // =====================================================
     // SPLASH -> SHIELD -> ELEVATOR
     // =====================================================
 
@@ -327,6 +450,7 @@
 
     shieldButton.addEventListener("click", () => {
       if (riveAnimation) return;
+      startMusic();
       statusEl.textContent = "Loading…";
       loadElevator();
     });
@@ -374,7 +498,15 @@
             console.warn(`safeFloorEvery not found on ${VIEW_MODEL}`);
           }
 
+          const safeBoxesDelay = vmi.number("safeFloorBoxesDelay");
+          if (safeBoxesDelay) {
+            safeBoxesDelay.value = SAFE_FLOOR_BOXES_DELAY;
+          } else {
+            console.warn(`safeFloorBoxesDelay not found on ${VIEW_MODEL}`);
+          }
+
           watchGame();
+          watchSounds();
 
           // Nothing in the Rive file starts the trip on its own
           const startTrigger = vmi.trigger(START_TRIGGER);
@@ -428,7 +560,8 @@
 
     function watchGame() {
 
-      // Leave button in Rive
+      // Leave button in Rive. leaveTrigger fires once the leave outro
+      // (astronaut flying out, capybara shrugging) has played.
       onFire("leaveTrigger", () => endGame("left"));
 
       // Shield: note when it's switched on or used up, so a bomb it
@@ -444,8 +577,7 @@
         // Check again once the bomb has resolved: the shield may have
         // kicked in, or the script may have cleared isFail
         setTimeout(() => {
-          // The re-check already used up part of the delay
-          if (isFail.value && !shielded()) endGame("over", END_DELAY_MS - SHIELD_GRACE_MS);
+          if (isFail.value && !shielded()) endGame("over");
         }, SHIELD_GRACE_MS);
       });
 
@@ -458,6 +590,30 @@
         }
       });
 
+    }
+
+    function watchSounds() {
+      for (const [name, file] of Object.entries(SOUND_ON)) {
+        onFire(name, () => playSound(file));
+      }
+
+      for (const [name, file] of Object.entries(END_SOUND_ON)) {
+        onFire(name, () => playEndSound(name, file));
+      }
+
+      // Same shield check as the game over, so a blocked bomb stays quiet
+      const isFail = vmi.boolean("isFail");
+      isFail?.on(() => {
+        if (!isFail.value || shielded()) return;
+        playSound(BOMB_SOUND);
+        playEndSound("isFail", GAME_OVER_SOUND);
+      });
+    }
+
+    function playEndSound(name, file) {
+      console.log(`${name}: playing ${file}, fading music`);
+      fadeOutMusic();
+      playSound(file);
     }
 
     function shielded() {
@@ -473,7 +629,7 @@
       return readNumber("totalDollars") + readNumber("totalVpx") + readNumber("totalBooster");
     }
 
-    function endGame(kind, delay = END_DELAY_MS) {
+    function endGame(kind) {
       if (ended) return;
       ended = true;
 
@@ -481,11 +637,20 @@
       const won = kind !== "over" && totalWon() > 0;
       console.log(`game ${kind}${won ? `, won ${totalWon()}` : ""}`);
 
-      setTimeout(() => {
+      const armedAt = performance.now() + END_TAP_ARM_MS;
+
+      // pointerdown, not click: the Rive canvas can swallow clicks on touch
+      function onTap(event) {
+        if (performance.now() < armedAt) return;
+        // The back and sound buttons keep working without showing the result
+        if (topBar.contains(event.target)) return;
+        frame.removeEventListener("pointerdown", onTap, true);
         resultImage.src = RESULT_IMAGES[kind];
         showOverlay(resultOverlay);
         if (won) showReward();
-      }, delay);
+      }
+
+      frame.addEventListener("pointerdown", onTap, true);
     }
 
 
