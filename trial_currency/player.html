@@ -58,7 +58,7 @@
     top: 60px;
     left: 12px;
     display: none;
-    grid-template-columns: auto 80px;
+    grid-template-columns: auto 100px;
     gap: 6px 10px;
     align-items: center;
     padding: 10px 12px;
@@ -153,6 +153,14 @@
   <input id="endX" type="number" value="200">
   <label for="endY">endY</label>
   <input id="endY" type="number" value="120">
+  <label for="tokenImageName">tokenImageName</label>
+  <input id="tokenImageName" type="text" value="ticket">
+  <label for="tokenImage">tokenImage</label>
+  <select id="tokenImage">
+    <option value="ticket-7231561.png" selected>ticket</option>
+    <option value="vxp-6625465.png">vxp</option>
+    <option value="bingo-6548110.png">bingo</option>
+  </select>
 </div>
 <div class="stage">
   <canvas id="rive-canvas" width="393" height="852"></canvas>
@@ -161,7 +169,6 @@
 <div id="status">Pick an animation</div>
 
 <script src="https://unpkg.com/@rive-app/canvas@2.47.1"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
   const canvas = document.getElementById("rive-canvas");
   const statusEl = document.getElementById("status");
@@ -237,20 +244,20 @@
     });
   }
 
-  // trial_currency1 is a zip export: trial_currency.riv + the referenced
-  // images (vxp-*.png, ticket-*.png), which have to be supplied via
-  // assetLoader. Each asset is matched to its zip entry by uniqueFilename.
-  async function loadEtp(id) {
-    const zip = await JSZip.loadAsync(await fetchBytes("trial_currency1"));
-    const rivEntry = zip.file(/\.riv$/i)[0];
-    if (!rivEntry) throw new Error("no .riv inside trial_currency1");
+  async function fetchImage(fileName) {
+    return rive.decodeImage(new Uint8Array(await fetchBytes(fileName)));
+  }
 
-    const buffer = await rivEntry.async("arraybuffer");
-    const imagesByName = {};
-    for (const entry of zip.file(/\.(png|jpe?g|webp)$/i)) {
-      imagesByName[entry.name] = await entry.async("uint8array");
-    }
+  // trial_currency.riv references its images (bingo-*.png, vxp-*.png,
+  // ticket-*.png) instead of embedding them; they sit next to it and are
+  // supplied via assetLoader, matched by uniqueFilename.
+  async function loadEtp(id) {
+    const buffer = await fetchBytes("trial_currency.riv");
     if (id !== loadId) return;
+
+    // The currencycontrol script looks up tokenImageName among the image
+    // assets, so it may only be set once the referenced images are in.
+    const assetLoads = [];
 
     destroyCurrent();
     riveInstance = new rive.Rive({
@@ -262,17 +269,11 @@
       assetLoader: (asset, bytes) => {
         if (!asset.isImage) return false;
 
-        const fileName = asset.uniqueFilename;
-        const imageBytes = imagesByName[fileName];
-        if (!imageBytes) {
-          // Embedded images (e.g. bingo) are handled by Rive itself.
-          if (bytes.length === 0) {
-            console.warn(`[rive] no ${fileName} in zip for asset "${asset.name}"`);
-          }
-          return false;
-        }
+        // Embedded images are handled by Rive itself.
+        if (bytes.length > 0) return false;
 
-        rive.decodeImage(imageBytes)
+        const fileName = asset.uniqueFilename;
+        const load = fetchImage(fileName)
           .then((image) => {
             asset.setRenderImage(image);
             // Release our reference once the engine has taken ownership.
@@ -280,26 +281,31 @@
             console.log(`[rive] ${fileName} applied to asset "${asset.name}"`);
           })
           .catch((err) => {
-            console.error(`[rive] failed to decode ${fileName}:`, err);
+            console.error(`[rive] failed to load ${fileName}:`, err);
           });
+        assetLoads.push(load);
         return true;
       },
       onLoad: () => {
         riveInstance.resizeDrawingSurfaceToCanvas();
         if (bindCurrencyVM()) {
           confettiBtn.classList.add("visible");
+          const vmi = currencyVmi;
+          Promise.all(assetLoads).then(() => {
+            if (vmi === currencyVmi) applyTokenImageName();
+          });
         }
-        setStatus("trial_currency1 loaded");
+        setStatus("trial_currency.riv loaded");
       },
       onLoadError: (err) => {
-        console.error("[rive] failed to load trial_currency1:", err);
-        setStatus("Could not load trial_currency1");
+        console.error("[rive] failed to load trial_currency.riv:", err);
+        setStatus("Could not load trial_currency.riv");
       },
     });
   }
 
   // Explicitly load CurrencyVM, bind its default instance and set the
-  // number fields from the form. Returns true when bound.
+  // number fields and tokenImage from the form. Returns true when bound.
   function bindCurrencyVM() {
     const currencyVM = riveInstance.viewModelByName("CurrencyVM");
     if (!currencyVM) {
@@ -317,7 +323,39 @@
     console.log("CurrencyVM bound");
 
     VM_NUMBER_FIELDS.forEach(applyField);
+    applyTokenImage();
     return true;
+  }
+
+  function applyTokenImageName() {
+    const prop = currencyVmi?.string("tokenImageName");
+    if (!prop) {
+      if (currencyVmi) console.warn("String not found: tokenImageName");
+      return;
+    }
+    prop.value = document.getElementById("tokenImageName").value;
+    console.log("tokenImageName =", prop.value);
+  }
+
+  async function applyTokenImage() {
+    const vmi = currencyVmi;
+    const prop = vmi?.image("tokenImage");
+    if (!prop) {
+      if (vmi) console.warn("Image not found: tokenImage");
+      return;
+    }
+    const fileName = document.getElementById("tokenImage").value;
+    try {
+      const image = await fetchImage(fileName);
+      // Skip if the animation was switched while the image loaded.
+      if (vmi === currencyVmi) {
+        prop.value = image;
+        console.log("tokenImage =", fileName);
+      }
+      image.unref();
+    } catch (err) {
+      console.error(`[rive] failed to load ${fileName}:`, err);
+    }
   }
 
   function applyField(name) {
@@ -338,6 +376,8 @@
   VM_NUMBER_FIELDS.forEach((name) => {
     document.getElementById(name).addEventListener("change", () => applyField(name));
   });
+  document.getElementById("tokenImageName").addEventListener("change", applyTokenImageName);
+  document.getElementById("tokenImage").addEventListener("change", applyTokenImage);
 
   confettiBtn.addEventListener("click", () => {
     const trigger = currencyVmi?.trigger("confettiTrigger");
