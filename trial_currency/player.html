@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rive Player</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background-color: #000;
+    overflow: hidden;
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .buttons {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+  }
+
+  .buttons button {
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .buttons button.active {
+    background: #fff;
+    color: #000;
+  }
+
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #rive-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 393px;
+    max-height: 852px;
+  }
+
+  #vm-fields {
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    display: none;
+    grid-template-columns: auto 80px;
+    gap: 6px 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 13px;
+    z-index: 10;
+  }
+
+  #vm-fields.visible {
+    display: grid;
+  }
+
+  #vm-fields input,
+  #vm-fields select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font: inherit;
+  }
+
+  #confetti-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 999px;
+    background: #fff;
+    color: #000;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  #confetti-btn.visible {
+    display: block;
+  }
+
+  #status {
+    position: fixed;
+    bottom: 8px;
+    left: 8px;
+    color: #fff;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div class="buttons">
+  <button data-anim="happy1">happy loop 1</button>
+  <button data-anim="happy2">happy loop 2</button>
+  <button data-anim="etp">etp flying</button>
+</div>
+<div id="vm-fields">
+  <label for="particleType">particleType</label>
+  <select id="particleType">
+    <option value="1" selected>1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+  </select>
+  <label for="animationType">animationType</label>
+  <select id="animationType">
+    <option value="1" selected>1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+  </select>
+  <label for="confettiCount">confettiCount</label>
+  <input id="confettiCount" type="number" value="24">
+  <label for="confettiSeed">confettiSeed</label>
+  <input id="confettiSeed" type="number" value="12345">
+  <label for="startX">startX</label>
+  <input id="startX" type="number" value="200">
+  <label for="startY">startY</label>
+  <input id="startY" type="number" value="650">
+  <label for="endX">endX</label>
+  <input id="endX" type="number" value="200">
+  <label for="endY">endY</label>
+  <input id="endY" type="number" value="120">
+</div>
+<div class="stage">
+  <canvas id="rive-canvas" width="393" height="852"></canvas>
+</div>
+<button id="confetti-btn">confettiTrigger</button>
+<div id="status">Pick an animation</div>
+
+<script src="https://unpkg.com/@rive-app/canvas@2.47.1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  const canvas = document.getElementById("rive-canvas");
+  const statusEl = document.getElementById("status");
+  const buttons = document.querySelectorAll(".buttons button");
+  const vmFieldsEl = document.getElementById("vm-fields");
+  const confettiBtn = document.getElementById("confetti-btn");
+  const VM_NUMBER_FIELDS = [
+    "particleType",
+    "animationType",
+    "confettiCount",
+    "confettiSeed",
+    "startX",
+    "startY",
+    "endX",
+    "endY",
+  ];
+
+  let riveInstance = null;
+  // CurrencyVM instance bound to the etp flying animation, if loaded.
+  let currencyVmi = null;
+  // Bumped on every click so a slow load can't overwrite a newer one.
+  let loadId = 0;
+
+  const layout = new rive.Layout({
+    fit: rive.Fit.Contain,
+    alignment: rive.Alignment.Center,
+  });
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  function destroyCurrent() {
+    currencyVmi = null;
+    confettiBtn.classList.remove("visible");
+    if (riveInstance) {
+      riveInstance.cleanup();
+      riveInstance = null;
+    }
+  }
+
+  async function fetchBytes(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`fetch ${url} failed: ${res.status} ${res.statusText}`);
+    }
+    return res.arrayBuffer();
+  }
+
+  // happyend1 / happyend2 are plain .riv files (no extension).
+  async function loadHappy(file, id) {
+    const buffer = await fetchBytes(file);
+    if (id !== loadId) return;
+
+    destroyCurrent();
+    riveInstance = new rive.Rive({
+      buffer,
+      canvas,
+      layout,
+      autoplay: true,
+      // Without a state machine Rive plays the default artboard's first
+      // timeline, a 1s one-shot; the looping nested artboards run under the SM.
+      stateMachine: "State Machine 1",
+      autoBind: true,
+      onLoad: () => {
+        riveInstance.resizeDrawingSurfaceToCanvas();
+        setStatus(`${file} loaded`);
+      },
+      onLoadError: (err) => {
+        console.error(`[rive] failed to load ${file}:`, err);
+        setStatus(`Could not load ${file}`);
+      },
+    });
+  }
+
+  // trial_currency1 is a zip export: trial_currency.riv + the referenced
+  // images (vxp-*.png, ticket-*.png), which have to be supplied via
+  // assetLoader. Each asset is matched to its zip entry by uniqueFilename.
+  async function loadEtp(id) {
+    const zip = await JSZip.loadAsync(await fetchBytes("trial_currency1"));
+    const rivEntry = zip.file(/\.riv$/i)[0];
+    if (!rivEntry) throw new Error("no .riv inside trial_currency1");
+
+    const buffer = await rivEntry.async("arraybuffer");
+    const imagesByName = {};
+    for (const entry of zip.file(/\.(png|jpe?g|webp)$/i)) {
+      imagesByName[entry.name] = await entry.async("uint8array");
+    }
+    if (id !== loadId) return;
+
+    destroyCurrent();
+    riveInstance = new rive.Rive({
+      buffer,
+      canvas,
+      layout,
+      autoplay: true,
+      stateMachine: "State Machine 1",
+      assetLoader: (asset, bytes) => {
+        if (!asset.isImage) return false;
+
+        const fileName = asset.uniqueFilename;
+        const imageBytes = imagesByName[fileName];
+        if (!imageBytes) {
+          // Embedded images (e.g. bingo) are handled by Rive itself.
+          if (bytes.length === 0) {
+            console.warn(`[rive] no ${fileName} in zip for asset "${asset.name}"`);
+          }
+          return false;
+        }
+
+        rive.decodeImage(imageBytes)
+          .then((image) => {
+            asset.setRenderImage(image);
+            // Release our reference once the engine has taken ownership.
+            image.unref();
+            console.log(`[rive] ${fileName} applied to asset "${asset.name}"`);
+          })
+          .catch((err) => {
+            console.error(`[rive] failed to decode ${fileName}:`, err);
+          });
+        return true;
+      },
+      onLoad: () => {
+        riveInstance.resizeDrawingSurfaceToCanvas();
+        if (bindCurrencyVM()) {
+          confettiBtn.classList.add("visible");
+        }
+        setStatus("trial_currency1 loaded");
+      },
+      onLoadError: (err) => {
+        console.error("[rive] failed to load trial_currency1:", err);
+        setStatus("Could not load trial_currency1");
+      },
+    });
+  }
+
+  // Explicitly load CurrencyVM, bind its default instance and set the
+  // number fields from the form. Returns true when bound.
+  function bindCurrencyVM() {
+    const currencyVM = riveInstance.viewModelByName("CurrencyVM");
+    if (!currencyVM) {
+      console.warn("CurrencyVM not found");
+      return false;
+    }
+
+    const vmi = currencyVM.defaultInstance() || currencyVM.instance();
+    if (!vmi) {
+      console.warn("Could not create CurrencyVM instance");
+      return false;
+    }
+    riveInstance.bindViewModelInstance(vmi);
+    currencyVmi = vmi;
+    console.log("CurrencyVM bound");
+
+    VM_NUMBER_FIELDS.forEach(applyField);
+    return true;
+  }
+
+  function applyField(name) {
+    if (!currencyVmi) return;
+    const value = Number(document.getElementById(name).value);
+    if (!Number.isFinite(value)) return;
+
+    const prop = currencyVmi.number(name);
+    if (!prop) {
+      console.warn("Number not found:", name);
+      return;
+    }
+    prop.value = value;
+    console.log(name, "=", value);
+  }
+
+  // Edits after load are pushed straight into the bound view model.
+  VM_NUMBER_FIELDS.forEach((name) => {
+    document.getElementById(name).addEventListener("change", () => applyField(name));
+  });
+
+  confettiBtn.addEventListener("click", () => {
+    const trigger = currencyVmi?.trigger("confettiTrigger");
+    if (!trigger) {
+      console.warn("confettiTrigger not found");
+      return;
+    }
+    trigger.trigger();
+  });
+
+  async function play(anim) {
+    const id = ++loadId;
+    buttons.forEach((b) => b.classList.toggle("active", b.dataset.anim === anim));
+    vmFieldsEl.classList.toggle("visible", anim === "etp");
+    setStatus("Loading…");
+
+    try {
+      if (anim === "happy1") await loadHappy("happyend1", id);
+      else if (anim === "happy2") await loadHappy("happyend2", id);
+      else if (anim === "etp") await loadEtp(id);
+    } catch (err) {
+      if (id !== loadId) return;
+      console.error(err);
+      setStatus(err.message);
+    }
+  }
+
+  buttons.forEach((b) => b.addEventListener("click", () => play(b.dataset.anim)));
+
+  window.addEventListener("resize", () => {
+    if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
+  });
+</script>
+</body>
+</html>
