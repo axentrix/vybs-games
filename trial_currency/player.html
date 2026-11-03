@@ -129,17 +129,17 @@
 <div id="vm-fields">
   <label for="particleType">particleType</label>
   <select id="particleType">
-    <option value="1" selected>1</option>
+    <option value="1">1</option>
     <option value="2">2</option>
     <option value="3">3</option>
-    <option value="4">4</option>
+    <option value="4" selected>4</option>
   </select>
   <label for="animationType">animationType</label>
   <select id="animationType">
-    <option value="1" selected>1</option>
+    <option value="1">1</option>
     <option value="2">2</option>
     <option value="3">3</option>
-    <option value="4">4</option>
+    <option value="4" selected>4</option>
   </select>
   <label for="confettiCount">confettiCount</label>
   <input id="confettiCount" type="number" value="24">
@@ -406,6 +406,9 @@
   }
 
   buttons.forEach((b) => b.addEventListener("click", () => play(b.dataset.anim)));
+
+  // etp flying is the default view on page load.
+  play("etp");
 
   window.addEventListener("resize", () => {
     if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
