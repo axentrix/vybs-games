@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Commitment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --dark-popup: #121642;
+      --illustration-bg: #161540;
+      --counter-bg: #5e69ff;
+      --button-shadow: #4854eb;
+      --yellow: #fed846;
+      --green: #3cd98a;
+      --day-off: #e2e2e2;
+      --text-muted: rgba(18, 22, 66, 0.77);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0b0a1a;
+      font-family: "Kanit", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    img { display: block; max-width: none; }
+
+    /* =====================================================
+       SCREEN (Figma 8891:739990)
+       ===================================================== */
+
+    /* Desktop: fixed phone-sized frame */
+    .screen {
+      position: relative;
+      width: 100%;
+      max-width: 393px;
+      height: 852px;
+      max-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-radius: 24.278px;
+      overflow: hidden;
+      background: var(--dark-popup);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Dimmed app screen behind the sheet */
+    .screen-bg {
+      position: absolute;
+      inset: 0;
+      opacity: 0.2;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .screen-bg img {
+      position: absolute;
+      left: -0.12%;
+      top: -0.33%;
+      width: 100%;
+      height: 110.58%;
+    }
+
+    /* Mobile: edge to edge, full screen */
+    @media (max-width: 480px) {
+      .screen {
+        height: 100vh;
+        height: 100dvh;
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
+    /* =====================================================
+       SHEET
+       ===================================================== */
+
+    .sheet {
+      position: relative;
+      flex: none;
+      height: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 12px 32px;
+      border-radius: 24.278px 24.278px 0 0;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    /* Rive slot */
+    .illustration {
+      position: relative;
+      flex: none;
+      width: 100%;
+      height: 155px;
+      border-radius: 24px 24px 8px 8px;
+      background: var(--illustration-bg);
+      overflow: hidden;
+    }
+
+    #riveCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      width: 100%;
+      padding: 0 12px;
+    }
+
+    .heading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .title {
+      font-weight: 500;
+      font-size: 16px;
+      line-height: 24px;
+      letter-spacing: 0.15px;
+      color: #000;
+      white-space: nowrap;
+    }
+
+    .hurry {
+      padding: 4px;
+      border-radius: 4px;
+      background: #ffe3ef;
+      color: #b42561;
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 16px;
+      letter-spacing: -0.16px;
+      white-space: nowrap;
+    }
+
+    /* ---------- Mission card ---------- */
+
+    /* Leaves room above the card for the CHALLENGE badge */
+    .mission-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 347px;
+      padding-top: 7px;
+    }
+
+    .mission {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 8px;
+      height: 110px;
+      border: 0.6px solid #7d4fcb;
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .mission::after {
+      content: "";
+      position: absolute;
+      inset: -0.6px;
+      border-radius: inherit;
+      box-shadow: inset 0 -4px 0 0 rgba(146, 87, 212, 0.44);
+      pointer-events: none;
+    }
+
+    .mission-icon {
+      flex: none;
+      width: 68px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px 8px;
+      background: linear-gradient(233.5deg, #453ab3 28.144%, #f47cff 98.355%);
+    }
+
+    .flag {
+      flex: none;
+      width: 44px;
+      height: 44px;
+      margin-bottom: -8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flag-art {
+      position: relative;
+      width: 42.285px;
+      height: 35.608px;
+    }
+
+    .flag-art .flags {
+      position: absolute;
+      inset: 0 8.99% 10% 13.89%;
+    }
+
+    .flag-art .flags img,
+    .flag-art .star img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .flag-art .star {
+      position: absolute;
+      left: calc(50% - 2.28px);
+      top: calc(50% - 3.66px);
+      width: 12.182px;
+      height: 12.182px;
+      transform: translate(-50%, -50%);
+    }
+
+    .time-counter {
+      width: 100%;
+      padding: 4px;
+      border-radius: 8px;
+      background: var(--yellow);
+      color: var(--dark-popup);
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 16px;
+      letter-spacing: 0.5px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mission-body {
+      flex: 1 0 0;
+      min-width: 1px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+      padding-right: 12px;
+    }
+
+    .mission-text {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 16px;
+      letter-spacing: -0.16px;
+    }
+
+    .days {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 24px;
+      padding-right: 12px;
+    }
+
+    .day {
+      flex: none;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--day-off);
+      color: #fff;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    .day.done { background: var(--green); }
+    .day.done img { width: 12px; height: 12px; }
+
+    .day.today {
+      border: 2px dashed #fed342;
+      border-radius: 9999px;
+      background: #fff;
+    }
+
+    .challenge {
+      position: absolute;
+      left: 255px;
+      top: 0;
+      z-index: 1;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      border-radius: 99px;
+      background: linear-gradient(35.52deg, #2771e9 0%, #792ee7 54.324%, #d46ff1 76.901%);
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    /* ---------- Continue button ---------- */
+
+    .continue {
+      width: 100%;
+      max-width: 347px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px 4px;
+      border: none;
+      border-radius: 8px;
+      background: var(--counter-bg);
+      box-shadow: inset 0 -6px 0 0 var(--button-shadow);
+      color: #fff;
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 18px;
+      line-height: 16px;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+    }
+
+    .continue:active { transform: translateY(1px); }
+    .continue:disabled { opacity: 0.6; cursor: default; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+
+    <div class="screen-bg"><img src="./assets/bg.png" alt="" /></div>
+
+    <div class="sheet">
+
+      <div class="illustration">
+        <canvas id="riveCanvas"></canvas>
+        <div class="status" id="status">Loading…</div>
+      </div>
+
+      <div class="content">
+
+        <div class="heading">
+          <p class="title" id="title">Day 3 Opened before passed</p>
+          <p class="hurry">Hurry! Don’t miss your chance to earn more.</p>
+        </div>
+
+        <div class="mission-wrap">
+          <div class="mission">
+
+            <div class="mission-icon">
+              <div class="flag">
+                <div class="flag-art">
+                  <div class="flags"><img src="./assets/flags.svg" alt="" /></div>
+                  <div class="star"><img src="./assets/flag-star.svg" alt="" /></div>
+                </div>
+              </div>
+              <div class="time-counter">6d 12h</div>
+            </div>
+
+            <div class="mission-body">
+              <p class="mission-text">Complete at least one game task each day for 7 days in a row</p>
+              <div class="days" id="days"></div>
+            </div>
+
+          </div>
+
+          <div class="challenge">Challenge</div>
+        </div>
+
+        <button class="continue" id="continueButton" disabled>Continue</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./commitment";
+    const VIEW_MODEL = "CommitmentVM";
+    const STATE_MACHINE = "State Machine 1";
+
+    const DEFAULT_DAY = 3;
+    const DEFAULT_MAX_DAYS = 7;
+
+
+    const canvas = document.getElementById("riveCanvas");
+    const statusEl = document.getElementById("status");
+    const titleEl = document.getElementById("title");
+    const daysEl = document.getElementById("days");
+    const continueButton = document.getElementById("continueButton");
+
+    let props = {};
+
+
+    // =====================================================
+    // LOAD RIVE
+    // =====================================================
+
+    const riveAnimation = new rive.Rive({
+
+      src: RIVE_SRC,
+      canvas: canvas,
+      stateMachines: STATE_MACHINE,
+      autoplay: true,
+      autoBind: true,
+
+      layout: new rive.Layout({
+        fit: rive.Fit.Cover,
+        alignment: rive.Alignment.Center
+      }),
+
+      onLoad: () => {
+
+        const vmi = riveAnimation.viewModelInstance;
+
+        if (!vmi) {
+          console.error(`${VIEW_MODEL} instance not bound`);
+          statusEl.textContent = "View model not found";
+          return;
+        }
+
+        props = {
+          currentDay: vmi.number("currentDay"),
+          maxDays: vmi.number("maxDays"),
+          moveUp: vmi.trigger("moveUp")
+        };
+
+        for (const [name, prop] of Object.entries(props)) {
+          if (!prop) {
+            console.error(`${name} not found on ${VIEW_MODEL}`);
+          }
+        }
+
+        // Keep the day row in step with the Rive file
+        props.currentDay?.on(renderDays);
+        props.maxDays?.on(renderDays);
+        renderDays();
+
+        continueButton.disabled = !props.moveUp;
+        statusEl.textContent = "";
+
+        resizeRive();
+
+      },
+
+      onLoadError: (err) => {
+        console.error("RIVE LOAD ERROR:", err);
+        statusEl.textContent = "Failed to load";
+      }
+
+    });
+
+
+    // =====================================================
+    // DAYS
+    // =====================================================
+
+    // Days up to currentDay are done, the next one is today, the rest locked
+    function renderDays() {
+      const current = Math.floor(props.currentDay?.value ?? DEFAULT_DAY);
+      const max = Math.floor(props.maxDays?.value || DEFAULT_MAX_DAYS);
+
+      titleEl.textContent = `Day ${current} Opened before passed`;
+      daysEl.innerHTML = "";
+
+      for (let day = 1; day <= max; day++) {
+        const el = document.createElement("div");
+        el.className = "day";
+
+        if (day <= current) {
+          el.classList.add("done");
+          el.innerHTML = '<img src="./assets/check.svg" alt="" />';
+        } else if (day === current + 1) {
+          el.classList.add("today");
+        } else {
+          el.textContent = day;
+        }
+
+        daysEl.append(el);
+      }
+    }
+
+    renderDays();
+
+
+    // =====================================================
+    // CONTROLS
+    // =====================================================
+
+    continueButton.addEventListener("click", () => {
+      if (!props.moveUp) return;
+      props.moveUp.trigger();
+      console.log(`moveUp fired (currentDay = ${props.currentDay?.value})`);
+    });
+
+
+    // =====================================================
+    // RESIZE
+    // =====================================================
+
+    function resizeRive() {
+      riveAnimation.resizeDrawingSurfaceToCanvas();
+    }
+
+    window.addEventListener("resize", resizeRive);
+
+    new ResizeObserver(resizeRive).observe(canvas);
+
+  </script>
+
+</body>
+</html>
