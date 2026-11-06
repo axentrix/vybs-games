@@ -141,6 +141,24 @@
     <option value="3">3</option>
     <option value="4" selected>4</option>
   </select>
+  <label for="animationSpeed">animationSpeed</label>
+  <input id="animationSpeed" type="number" min="0" step="0.1" value="1">
+  <label for="sound">sound</label>
+  <select id="sound">
+    <option value="none">none</option>
+    <option value="highFlutter" selected>highFlutter</option>
+    <option value="lowFlutter">lowFlutter</option>
+    <option value="bellWinner">bellWinner</option>
+    <option value="collectPoint">collectPoint</option>
+    <option value="harpAchievement">harpAchievement</option>
+    <option value="harpSweep">harpSweep</option>
+    <option value="jackpotCoins">jackpotCoins</option>
+    <option value="kaChing">kaChing</option>
+    <option value="chimeHigh">chimeHigh</option>
+    <option value="appChime">appChime</option>
+    <option value="successDing">successDing</option>
+    <option value="treasure">treasure</option>
+  </select>
   <label for="confettiCount">confettiCount</label>
   <input id="confettiCount" type="number" value="24">
   <label for="confettiSeed">confettiSeed</label>
@@ -178,6 +196,7 @@
   const VM_NUMBER_FIELDS = [
     "particleType",
     "animationType",
+    "animationSpeed",
     "confettiCount",
     "confettiSeed",
     "startX",
@@ -288,6 +307,14 @@
       },
       onLoad: () => {
         riveInstance.resizeDrawingSurfaceToCanvas();
+        // Haptics: the Rive file reports haptic_currency_burst when the
+        // burst starts; the host decides how to buzz. On the web only
+        // navigator.vibrate exists (Android Chrome; iOS Safari ignores it).
+        riveInstance.on(rive.EventType.RiveEvent, (event) => {
+          if (event.data?.name !== "haptic_currency_burst") return;
+          console.log("[rive] haptic_currency_burst");
+          if (navigator.vibrate) navigator.vibrate([40, 30, 60]);
+        });
         if (bindCurrencyVM()) {
           confettiBtn.classList.add("visible");
           const vmi = currencyVmi;
@@ -323,8 +350,20 @@
     console.log("CurrencyVM bound");
 
     VM_NUMBER_FIELDS.forEach(applyField);
+    applySound();
     applyTokenImage();
     return true;
+  }
+
+  // sound is a CurrencySound enum; the select's values are its value names.
+  function applySound() {
+    const prop = currencyVmi?.enum("sound");
+    if (!prop) {
+      if (currencyVmi) console.warn("Enum not found: sound");
+      return;
+    }
+    prop.value = document.getElementById("sound").value;
+    console.log("sound =", prop.value);
   }
 
   function applyTokenImageName() {
@@ -376,6 +415,7 @@
   VM_NUMBER_FIELDS.forEach((name) => {
     document.getElementById(name).addEventListener("change", () => applyField(name));
   });
+  document.getElementById("sound").addEventListener("change", applySound);
   document.getElementById("tokenImageName").addEventListener("change", applyTokenImageName);
   document.getElementById("tokenImage").addEventListener("change", applyTokenImage);
 
