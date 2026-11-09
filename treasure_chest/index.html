@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Vybs Treasure Chest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-top: #150E52;
+      --bg-bottom: #2568C2;
+      --white: #ffffff;
+      --tooltip-bg: #ffffff;
+      --tooltip-text: #150E52;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0d0a14;
+      font-family: "Kanit", system-ui, sans-serif;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+    }
+
+    .screen {
+      position: relative;
+      width: 100%;
+      max-width: 393px;
+      height: 100%;
+      background:
+        url("./bg.svg") center bottom / cover no-repeat,
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    #riveCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: manipulation;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* =====================================================
+       TOOLTIP
+       ===================================================== */
+
+    .tooltip {
+      position: absolute;
+      top: 4%;
+      left: 50%;
+      z-index: 2;
+      padding: 10px 18px;
+      border-radius: 12px;
+      background: var(--tooltip-bg);
+      color: var(--tooltip-text);
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 20px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 8px) scale(0.9);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Arrow pointing down at the chest */
+    .tooltip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: var(--tooltip-bg);
+      border-radius: 2px;
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    .tooltip.show {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+      animation: bob 1.4s ease-in-out 0.3s infinite;
+    }
+
+    @keyframes bob {
+      0%, 100% { transform: translate(-50%, 0) scale(1); }
+      50%      { transform: translate(-50%, -6px) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tooltip.show { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="screen">
+    <div class="stage" id="stage">
+      <canvas id="riveCanvas"></canvas>
+      <div class="status" id="status">Loading…</div>
+      <div class="tooltip" id="tooltip" role="status">Tap to open</div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/@rive-app/canvas@2.39.0"></script>
+
+  <script>
+
+    // =====================================================
+    // CONFIG
+    // =====================================================
+
+    const RIVE_SRC = "./treasure_chest.riv";
+    const STATE_MACHINE = "State Machine 1";
+    const VIEW_MODEL = "ChestVM";
+
+    const MAX_COUNT_PROP = "maxCount";
+    const MAX_COUNT = 8;
+
+    const TOOLTIP_DELAY_MS = 400;
+    const TOOLTIP_DURATION_MS = 3500;
+
+
+    const canvas = document.getElementById("riveCanvas");
+    const stageEl = document.getElementById("stage");
+    const statusEl = document.getElementById("status");
+    const tooltipEl = document.getElementById("tooltip");
+
+    let riveAnimation = null;
+    let chestVM = null;
+
+
+    // =====================================================
+    // TOOLTIP
+    // =====================================================
+
+    let tooltipTimer = null;
+
+    function showTooltip() {
+      tooltipEl.classList.add("show");
+      tooltipTimer = setTimeout(hideTooltip, TOOLTIP_DURATION_MS);
+    }
+
+    function hideTooltip() {
+      clearTimeout(tooltipTimer);
+      tooltipEl.classList.remove("show");
+    }
+
+    // Tapping the chest dismisses the tooltip right away.
+    canvas.addEventListener("pointerdown", hideTooltip, { once: true });
+
+
+    // =====================================================
+    // RIVE
+    // =====================================================
+
+    riveAnimation = new rive.Rive({
+      src: RIVE_SRC,
+      canvas: canvas,
+      stateMachines: STATE_MACHINE,
+      autoplay: true,
+      autoBind: false,
+      layout: new rive.Layout({
+        fit: rive.Fit.FitWidth,
+        alignment: rive.Alignment.Center,
+      }),
+
+      onLoad: () => {
+        // Match the stage to the artboard's aspect ratio so the artboard
+        // spans the full screen width with no letterboxing.
+        const b = riveAnimation.bounds;
+        if (b) {
+          stageEl.style.aspectRatio = (b.maxX - b.minX) + " / " + (b.maxY - b.minY);
+        }
+        riveAnimation.resizeDrawingSurfaceToCanvas();
+
+        const vm = riveAnimation.viewModelByName?.(VIEW_MODEL);
+
+        if (!vm) {
+          console.warn(VIEW_MODEL + " not found");
+        } else {
+          chestVM = vm.defaultInstance?.() || vm.instance?.();
+          riveAnimation.bindViewModelInstance(chestVM);
+          console.log(VIEW_MODEL + " bound", vm.properties);
+
+          const maxCount = chestVM.number(MAX_COUNT_PROP);
+          if (maxCount) {
+            maxCount.value = MAX_COUNT;
+          } else {
+            console.warn(MAX_COUNT_PROP + " not found on " + VIEW_MODEL);
+          }
+        }
+
+        statusEl.style.display = "none";
+        setTimeout(showTooltip, TOOLTIP_DELAY_MS);
+      },
+
+      onLoadError: (err) => {
+        console.error("[rive] failed to load:", err);
+        statusEl.textContent = "Failed to load animation";
+      },
+    });
+
+    window.addEventListener("resize", () => {
+      riveAnimation?.resizeDrawingSurfaceToCanvas();
+    });
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rive Pinata</title>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0F1129;
+    }
+
+    #riveCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #0F1129;
+    }
+    #winOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 41, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#winOverlay.show {
+  display: flex;
+}
+
+#winOverlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+  </style>
+  
+</head>
+
+<body>
+    <select id="smSelect" style="
+  position:absolute;
+  top:20px;
+  left:20px;
+  z-index:10000;
+  padding:8px 12px;
+  font-size:16px;
+">
+  <option value="State Machine 1">State Machine 1</option>
+  <option value="State Machine 2">State Machine 2</option>
+</select>
+  <canvas id="riveCanvas"></canvas>
+<div id="winOverlay">
+  <img src="bigwin.png" alt="Big win" />
+</div>
+ <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+<script>
+const canvas = document.getElementById("riveCanvas");
+const overlay = document.getElementById("winOverlay");
+const smSelect = document.getElementById("smSelect");
+
+let r = null;
+
+function loadRive(stateMachine) {
+
+  if (r) {
+    r.cleanup();
+    r = null;
+  }
+
+  overlay.classList.remove("show");
+
+  r = new rive.Rive({
+    src: "./pinata2.riv",
+    canvas,
+    artboard: "Artboard",
+    stateMachines: stateMachine,
+    autoplay: true,
+    autoBind: true,
+
+    layout: new rive.Layout({
+      fit: rive.Fit.Contain,
+     alignment: rive.Alignment.TopCenter
+    }),
+
+    onLoad: () => {
+      r.resizeDrawingSurfaceToCanvas();
+
+      console.log("Loaded:", stateMachine);
+      console.log("State Machines:", r.stateMachineNames);
+    },
+
+    onStateChange: (event) => {
+  const states = Array.isArray(event.data)
+    ? event.data
+    : [String(event.data)];
+
+  console.log("ACTIVE SM:", stateMachine);
+  console.log("STATES:", states);
+
+  if (states.some(s => String(s).toLowerCase() === "winstate")) {
+    overlay.classList.add("show");
+  }
+
+  if (states.some(s => String(s).toLowerCase() === "exit")) {
+    overlay.classList.add("show");
+  }
+},
+
+    onLoadError: (err) => {
+      console.error(err);
+    }
+  });
+}
+
+loadRive(smSelect.value);
+
+smSelect.addEventListener("change", () => {
+  loadRive(smSelect.value);
+});
+
+window.addEventListener("resize", () => {
+  if (r) {
+    r.resizeDrawingSurfaceToCanvas();
+  }
+});
+</script>
+</body>
+</html>

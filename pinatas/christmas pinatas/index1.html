@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rive Pinata</title>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+     /* background: #0F1129;*/
+      background: transparent url("bg.png") 50% 0 no-repeat;
+      background-size:cover;
+      display:flex; 
+      justify-content:center;
+    }
+@media (orientation: portrait) {
+
+  html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+     /* background: #0F1129;*/
+      background: transparent url("bgmobile.png") 0 0 no-repeat;
+      display:flex; 
+      justify-content:center;
+    }
+
+}
+    #riveCanvas {
+      width: 100vw;
+    
+      height: auto;
+      display: block;
+      
+    }
+    #winOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 41, 0.95);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#winOverlay.show {
+  display: flex;
+}
+
+#winOverlay img {
+  max-width: 280px;
+  
+  object-fit: contain;
+}
+  </style>
+  
+</head>
+
+<body>
+
+  <canvas id="riveCanvas"></canvas>
+<div id="winOverlay">
+
+  <img src="bigwin.png" alt="Big win" width="280"/>
+</div>
+ <script src="https://unpkg.com/@rive-app/canvas@latest"></script>
+
+<script>
+const canvas = document.getElementById("riveCanvas");
+const overlay = document.getElementById("winOverlay");
+const smSelect = document.getElementById("smSelect");
+const punchSound = new Audio("sound/punch.mp3");
+punchSound.preload = "auto";
+punchSound.volume = 0.4 // 30%
+
+const winSound = new Audio("sound/win.mp3");
+winSound.preload = "auto";
+winSound.volume = 0.4;
+
+const hahaSound = new Audio("sound/haha.mp3");
+hahaSound.preload = "auto";
+hahaSound.volume = 0.2;
+
+const music = new Audio("sound/bgmusic.mp3");
+music.loop = true;
+music.volume = 0.45;      // Background music quieter than SFX
+music.preload = "auto";
+
+let r = null;
+
+function loadRive() {
+
+  if (r) {
+    r.cleanup();
+    r = null;
+  }
+
+  overlay.classList.remove("show");
+
+  r = new rive.Rive({
+    src: "./pinata3.riv",
+    canvas,
+    artboard: "Artboard",
+    stateMachines: "State Machine 3",
+    autoplay: true,
+    autoBind: true,
+
+    layout: new rive.Layout({
+      fit: rive.Fit.Contain,
+     alignment: rive.Alignment.TopCenter
+    }),
+
+onLoad: () => {
+  r.resizeDrawingSurfaceToCanvas();
+
+  try {
+    const vmi = r.viewModelInstance;
+
+    console.log("ViewModel instance:", vmi);
+
+    if (vmi) {
+      const hitTrigger = vmi.trigger("hitTrigger");
+
+      console.log("hitTrigger:", hitTrigger);
+
+      if (hitTrigger && hitTrigger.on) {
+        hitTrigger.on(() => {
+          punchSound.currentTime = 0;
+          punchSound.play().catch(err => {
+            console.log("Sound play failed:", err);
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.log("ViewModel sound binding failed:", err);
+  }
+},
+
+    onStateChange: (event) => {
+  const states = Array.isArray(event.data)
+    ? event.data
+    : [String(event.data)];
+
+ 
+  console.log("STATES:", states);
+
+  if (states.some(s => String(s).toLowerCase() === "winstate")) {
+ //   overlay.classList.add("show");
+  winSound.currentTime = 0;
+  winSound.play().catch(err => console.log(err));
+  }
+   if (states.some(s => String(s).toLowerCase() === "idle2")) {
+  if (Math.random() < 0.2) { // 20% chance
+    hahaSound.currentTime = 0;
+    hahaSound.play().catch(err => {
+      console.log("haha play failed:", err);
+    });
+  }
+
+  }
+
+  if (states.some(s => String(s).toLowerCase() === "exit")) {
+    overlay.classList.add("show");
+  }
+},
+
+    onLoadError: (err) => {
+      console.error(err);
+    }
+  });
+}
+
+loadRive();
+
+let musicStarted = false;
+
+function startMusic() {
+  if (musicStarted) return;
+
+  musicStarted = true;
+  music.play().catch(err => {
+    console.log("Music play failed:", err);
+  });
+}
+
+canvas.addEventListener("pointerdown", startMusic, { once: true });
+
+window.addEventListener("resize", () => {
+  if (r) {
+    r.resizeDrawingSurfaceToCanvas();
+  }
+});
+</script>
+</body>
+</html>
