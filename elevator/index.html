@@ -289,27 +289,27 @@
 
     const SOUND_DIR = "./music/";
     // Loops from the moment the elevator starts
-    const BG_MUSIC = "bg_music.m4a";
+    const BG_MUSIC = "bg_music.mp3";
     const BG_MUSIC_VOLUME = 0.3;
     const SFX_VOLUME = 0.6;
     // ElevatorVM trigger or boolean (on turning true) -> sound
     const SOUND_ON = {
-      isLeaving: "astronaut_leave.aac",
-      isSafeFloor: "safe_floor.aac",
-      shieldOnTrigger: "shield.aac",
-      doorClose: "door_closes.aac",
+      isLeaving: "astronaut_leave.mp3",
+      isSafeFloor: "safe_floor.mp3",
+      shieldOnTrigger: "shield.mp3",
+      doorClose: "door_closes.mp3",
       doorOpen: "door_opens.mp3",
-      isOpened: "reward_open.aac",
-      collect: "reward_fly.aac"
+      isOpened: "reward_open.mp3",
+      collect: "reward_fly.mp3"
     };
     // isFail turning true without a shield: both play and the music fades out
-    const BOMB_SOUND = "bomb.aac";
-    const GAME_OVER_SOUND = "game_over.aac";
+    const BOMB_SOUND = "bomb.mp3";
+    const GAME_OVER_SOUND = "game_over.mp3";
     // Ending trigger or boolean -> sound, and the music fades out
     const END_SOUND_ON = {
       // Fires right after the Leave button in the cashout popup
-      astronautFlyAway: "happy_end.aac",
-      allFloorsDone: "happy_end.aac"
+      astronautFlyAway: "happy_end.mp3",
+      allFloorsDone: "happy_end.mp3"
     };
     const MUSIC_FADE_S = 1.5;
 
