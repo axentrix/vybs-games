@@ -22,18 +22,18 @@
       width: 100%;
       max-width: 393px;
       height: 100%;
-      background: #0F1129 url("advanced.png") center top / cover no-repeat;
+      background: #0F1129 url("chestbg.png") center top / cover no-repeat;
       overflow: hidden;
     }
 
     #riveCanvas {
       position: absolute;
+      /* start just below the "Use Key" toggle */
       top: 0;
+      bottom: 0;
       left: 0;
-      right: 0;
-      bottom: 64px; /* keeps the bottom-aligned Rive 64px off the bottom edge */
       width: 100%;
-      height: calc(100% - 64px);
+      height:100%;
       display: block;
       touch-action: manipulation;
     }
@@ -120,7 +120,7 @@
         autoBind: true,
         layout: new rive.Layout({
           fit: rive.Fit.Contain,
-          alignment: rive.Alignment.BottomCenter
+          alignment: rive.Alignment.TopCenter
         }),
         onLoad: () => {
           if (inst !== r) return; // a newer restart replaced this one
