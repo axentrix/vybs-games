@@ -88,6 +88,37 @@
     .key-toggle input:checked + .switch { background: #34C759; }
     .key-toggle input:checked + .switch::after { transform: translateX(18px); }
     .key-toggle input:focus-visible + .switch { outline: 2px solid #fff; outline-offset: 2px; }
+
+    /* "Tap to Play" pill over the chest. Taps pass through to the canvas.
+       Adjust --pill-top to move it up/down relative to the chest. */
+    .tap-pill {
+      --pill-top: 45%;
+      position: absolute;
+      top: var(--pill-top);
+      left: 50%;
+      z-index: 2;
+      padding: 10px 22px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font: 700 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: pill-pulse 1.2s ease-in-out infinite;
+      transition: opacity 0.25s;
+    }
+
+    .tap-pill.hidden {
+      opacity: 0;
+      animation-play-state: paused;
+    }
+
+    @keyframes pill-pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50%      { transform: translate(-50%, -50%) scale(1.08); }
+    }
   </style>
 </head>
 <body>
@@ -98,6 +129,7 @@
       <input type="checkbox" id="useKey" role="switch" />
       <span class="switch" aria-hidden="true"></span>
     </label>
+    <div class="tap-pill" id="tapPill">Tap to Play</div>
   </div>
 
   <script src="https://unpkg.com/@rive-app/canvas@2.47.1"></script>
@@ -105,11 +137,17 @@
     const canvas = document.getElementById("riveCanvas");
 
     const useKey = document.getElementById("useKey");
+    const tapPill = document.getElementById("tapPill");
     let r = null;
+
+    // The key and the chest are both drawn on the canvas, so the first tap
+    // on it hides the pill
+    canvas.addEventListener("pointerdown", () => tapPill.classList.add("hidden"));
 
     // Creates the Rive instance from scratch, with keyUnlock set from the toggle
     function startRive() {
       if (r) r.cleanup();
+      tapPill.classList.remove("hidden"); // fresh start: show the pill again
 
       const inst = new rive.Rive({
         src: "./pinata_chest.riv",
