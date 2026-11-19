@@ -265,6 +265,9 @@
     const STATE_MACHINE = "State Machine 1";
     const VIEW_MODEL = "ElevatorVM";
     const START_TRIGGER = "startMovingTrigger";
+    // Length of Main's "intro" timeline (elevator slides in, shield zooms,
+    // pulses and flies to its slot). The trip starts after it.
+    const INTRO_MS = 3000;
 
     // Every Nth floor is a safe floor (no bombs, shown in the background).
     // 0 turns safe floors off. ?safeEvery=4 in the URL overrides it.
@@ -510,11 +513,14 @@
           watchGame();
           watchSounds();
 
-          // Nothing in the Rive file starts the trip on its own
+          // Nothing in the Rive file starts the trip on its own. Wait for
+          // the intro (elevator enters, shield shows off) to finish first.
           const startTrigger = vmi.trigger(START_TRIGGER);
           if (startTrigger) {
-            startTrigger.trigger();
-            console.log(`${START_TRIGGER} fired`);
+            setTimeout(() => {
+              startTrigger.trigger();
+              console.log(`${START_TRIGGER} fired`);
+            }, INTRO_MS);
           } else {
             console.error(`${START_TRIGGER} not found on ${VIEW_MODEL}`);
           }
