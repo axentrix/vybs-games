@@ -286,7 +286,7 @@
 
     // Once the game ends, the result popup appears on its own after this long
     // (lets the bomb / leave / top floor ending play first). 0 = right away.
-    const RESULT_DELAY_MS = 1500;
+    const RESULT_DELAY_MS = 3000;
 
     // A bomb within this long of the shield turning on or being used up
     // counts as blocked, and isFail is re-checked after it before game over
@@ -294,9 +294,15 @@
 
     // Only the background music is played here; every sound effect is
     // inside elevator.riv
-    const BG_MUSIC_SRC = "./music/bg_music.mp3";
-    // Loops from startMovingTrigger
-    const BG_MUSIC_VOLUME = 0.3;
+    // Loops from startMovingTrigger. While ElevatorVM.expired is true the
+    // ticker loops instead of the music.
+    const TRACKS = {
+      bg:     { src: "./music/bg_music.mp3", volume: 0.3 },
+      ticker: { src: "./ticker.mp3",         volume: 0.3 }
+    };
+    const EXPIRED_FLAG = "expired";
+    // Crossfade when switching between the music and the ticker
+    const TRACK_SWAP_S = 0.3;
     // ElevatorVM trigger or boolean (on turning true) -> the music fades out.
     // An unshielded bomb (isFail) also stops it, see watchSounds.
     const MUSIC_STOP_ON = [
@@ -364,23 +370,24 @@
     // The music goes through this, so muting is one switch
     const masterGain = audioContext.createGain();
     masterGain.connect(audioContext.destination);
-    let musicBuffer = null;
+    const buffers = {};
     let musicWanted = false;
     let audioUnlocked = false;
-    let musicStarted = false;
     let musicEnded = false;
-    let music = null;
+    let music = null;      // { name, source, gain } of the loop playing now
     let muted = false;
 
-    // Fetched and decoded up front so it starts right on the trigger
-    fetch(BG_MUSIC_SRC)
-      .then((res) => res.arrayBuffer())
-      .then((data) => audioContext.decodeAudioData(data))
-      .then((buffer) => {
-        musicBuffer = buffer;
-        if (musicWanted) startMusic();
-      })
-      .catch((err) => console.warn(`Could not load ${BG_MUSIC_SRC}:`, err));
+    // Fetched and decoded up front so they start right on time
+    for (const [name, track] of Object.entries(TRACKS)) {
+      fetch(track.src)
+        .then((res) => res.arrayBuffer())
+        .then((data) => audioContext.decodeAudioData(data))
+        .then((buffer) => {
+          buffers[name] = buffer;
+          updateMusic();
+        })
+        .catch((err) => console.warn(`Could not load ${track.src}:`, err));
+    }
 
     // Top bar button: mutes the music and the Rive sound effects
     const soundButton = document.getElementById("soundButton");
@@ -403,25 +410,48 @@
     function startMusic() {
       musicWanted = true;
       audioContext.resume();
-      if (musicStarted || musicEnded || !musicBuffer) return;
-      musicStarted = true;
-      const source = audioContext.createBufferSource();
-      source.buffer = musicBuffer;
-      source.loop = true;
-      const gain = audioContext.createGain();
-      gain.gain.value = BG_MUSIC_VOLUME;
-      source.connect(gain).connect(masterGain);
-      source.start();
-      music = { source, gain };
+      updateMusic();
     }
 
+    // Plays the loop that fits right now: ticker while expired, else the music
+    function updateMusic() {
+      if (!musicWanted || musicEnded) return;
+      const wanted = vmi?.boolean(EXPIRED_FLAG)?.value ? "ticker" : "bg";
+      if (music?.name === wanted) return;
+      if (!buffers[wanted]) return; // starts once it has loaded
+      if (music) fadeOut(music, TRACK_SWAP_S);
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffers[wanted];
+      source.loop = true;
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+      const volume = TRACKS[wanted].volume;
+      if (music) {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(volume, now + TRACK_SWAP_S);
+      } else {
+        gain.gain.value = volume;
+      }
+      source.connect(gain).connect(masterGain);
+      source.start();
+      music = { name: wanted, source, gain };
+      console.log(`playing ${TRACKS[wanted].src}`);
+    }
+
+    function fadeOut(track, seconds) {
+      const now = audioContext.currentTime;
+      track.gain.gain.cancelScheduledValues(now);
+      track.gain.gain.setValueAtTime(track.gain.gain.value, now);
+      track.gain.gain.linearRampToValueAtTime(0, now + seconds);
+      track.source.stop(now + seconds);
+    }
+
+    // Game over: whichever loop is playing fades out for good
     function fadeOutMusic() {
       musicEnded = true;
       if (!music) return;
-      const now = audioContext.currentTime;
-      music.gain.gain.setValueAtTime(music.gain.gain.value, now);
-      music.gain.gain.linearRampToValueAtTime(0, now + MUSIC_FADE_S);
-      music.source.stop(now + MUSIC_FADE_S);
+      fadeOut(music, MUSIC_FADE_S);
       music = null;
     }
 
@@ -502,6 +532,10 @@
           } else {
             console.warn(`safeFloorBoxesDelay not found on ${VIEW_MODEL}`);
           }
+
+          // Every game starts not expired, whatever the Rive file's default is
+          const expired = vmi.boolean(EXPIRED_FLAG);
+          if (expired) expired.value = false;
 
           watchGame();
           watchSounds();
@@ -598,6 +632,11 @@
     // Sound effects play inside the Rive file; here the music only fades out
     // when the game ends
     function watchSounds() {
+      // expired true -> ticker loop, false -> back to the music
+      const expired = vmi.boolean(EXPIRED_FLAG);
+      if (expired) expired.on(updateMusic);
+      else console.warn(`${EXPIRED_FLAG} not found on ${VIEW_MODEL}`);
+
       for (const name of MUSIC_STOP_ON) {
         onFire(name, () => stopMusic(name));
       }
