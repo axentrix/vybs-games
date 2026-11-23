@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Pinata Basic</title>
+  <title>Pinata Chest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;800&display=swap" rel="stylesheet" />
   <style>
     html, body {
       margin: 0;
@@ -28,7 +31,6 @@
 
     #riveCanvas {
       position: absolute;
-      /* start just below the "Use Key" toggle */
       top: 0;
       bottom: 0;
       left: 0;
@@ -38,147 +40,393 @@
       touch-action: manipulation;
     }
 
-    /* "Use Key" toggle, top of the screen */
-    .key-toggle {
+    /* =====================================================
+       COLLECT OVERLAY (Figma "Collect" 419:51502)
+       Shown once the chest animation reaches its Exit state.
+       ===================================================== */
+
+    .collect {
       position: absolute;
-      top: max(16px, env(safe-area-inset-top));
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 2;
+      inset: 0;
+      z-index: 5;
       display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.45);
-      color: #fff;
-      font: 600 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .key-toggle input {
-      position: absolute;
+      flex-direction: column;
+      justify-content: flex-end;
+      
+      overflow: hidden;
+      font-family: "Kanit", system-ui, sans-serif;
       opacity: 0;
-      pointer-events: none;
+      transition: opacity 0.35s ease;
     }
+    .collect.show { opacity: 1; }
+    .collect[hidden] { display: none; }
 
-    .key-toggle .switch {
+    /* Header */
+    .c-header {
       position: relative;
-      width: 42px;
-      height: 24px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.3);
-      transition: background 0.2s;
-    }
-
-    .key-toggle .switch::after {
-      content: "";
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform 0.2s;
-    }
-
-    .key-toggle input:checked + .switch { background: #34C759; }
-    .key-toggle input:checked + .switch::after { transform: translateX(18px); }
-    .key-toggle input:focus-visible + .switch { outline: 2px solid #fff; outline-offset: 2px; }
-
-    /* "Tap to Play" pill over the chest. Taps pass through to the canvas.
-       Adjust --pill-top to move it up/down relative to the chest. */
-    .tap-pill {
-      --pill-top: 45%;
-      position: absolute;
-      top: var(--pill-top);
-      left: 50%;
       z-index: 2;
-      padding: 10px 22px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.55);
-      color: #fff;
-      font: 700 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      letter-spacing: 0.02em;
-      white-space: nowrap;
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      animation: pill-pulse 1.2s ease-in-out infinite;
-      transition: opacity 0.25s;
+      flex: none;
+      height: 75px;
+      box-sizing: border-box;
+      padding: 12px;
+      background: #fff;
+      border-bottom: 2px solid #d9d9d9;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
     }
 
-    .tap-pill.hidden {
-      opacity: 0;
-      animation-play-state: paused;
+    .avatar-level { position: relative; width: 76px; height: 42px; overflow: hidden; flex: none; }
+    .level-pill {
+      position: absolute; left: 18px; top: 6px; width: 58px; height: 32px; box-sizing: border-box;
+      padding: 0 8px 0 24px; border-radius: 888px; background: #e8efff;
+      display: flex; align-items: center;
     }
+    .level-pill .lvl { display: flex; flex-direction: column; align-items: center; }
+    .level-pill .star { width: 18.598px; height: 18.598px; margin-bottom: -2px; display: flex; align-items: center; justify-content: center; overflow: visible; }
+    /* The 39px star art is placed in an 18.6px slot, as in the design */
+    .level-pill .star img { width: 39px; height: 39px; flex: none; transform: scale(0.4769); }
+    .level-pill .lvl-text { font-size: 10px; line-height: 12px; letter-spacing: -0.3px; color: #5e69ff; white-space: nowrap; }
+    .progress-circle { position: absolute; left: 0; top: 0; width: 42.029px; height: 42.029px; }
 
-    @keyframes pill-pulse {
-      0%, 100% { transform: translate(-50%, -50%) scale(1); }
-      50%      { transform: translate(-50%, -50%) scale(1.08); }
+    .avatar {
+      position: absolute; left: 0; top: 0; width: 42px; height: 42px; border-radius: 888px;
+      background: #d7dafe; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
     }
+    .av-grid { display: inline-grid; grid-template: max-content / max-content; place-items: start; line-height: 0; }
+    .av-grid > * { grid-area: 1 / 1; }
+    .av-body { margin: 3.96px 0 0 6.48px; }
+    .av-soft { margin: 1.35px 0 0 3.02px; opacity: 0.4; mix-blend-mode: soft-light; }
+    .av-v {
+      position: relative; display: block;
+      -webkit-mask: url("collect/av-mask.svg") var(--mp) / 40.741px 40.741px no-repeat;
+              mask: url("collect/av-mask.svg") var(--mp) / 40.741px 40.741px no-repeat;
+      -webkit-mask-clip: no-clip; mask-clip: no-clip; mask-mode: alpha;
+    }
+    .av-v > img, .av-inset > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; }
+    .av-inset { position: absolute; }
+
+    .c-header-mid { display: flex; align-items: center; gap: 8px; }
+    .pill { height: 32px; box-sizing: border-box; padding: 0 8px; border-radius: 12px; display: flex; align-items: center; gap: 4px; }
+    .pill.balance { background: #e8ffdd; }
+    .pill.raffle { background: #fff4e9; }
+    .cash-stack { width: 27.607px; display: flex; justify-content: center; }
+    .cash-stack .stack { display: inline-grid; line-height: 0; place-items: start; }
+    .cash-stack .stack img { grid-area: 1 / 1; width: 27.229px; height: 13.139px; }
+    .pill-value {
+      font-weight: 800; font-size: 16px; letter-spacing: -0.48px; white-space: nowrap;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .balance .pill-value { background-image: linear-gradient(180.42deg, #eff8ce 31.454%, #fff 45.615%, #e0f0c3 59.775%, #cdff74 73.936%); }
+    .raffle .pill-value { background-image: linear-gradient(181.9deg, #f8eece 31.454%, #ffd83d 73.936%); }
+    .raffle .ticket-wrap { width: 25.507px; height: 25.311px; display: flex; align-items: center; justify-content: center; }
+    .raffle .ticket-wrap img { width: 22.893px; height: 17.061px; }
+    .c-header-right { width: 76px; height: 42px; display: flex; align-items: center; justify-content: flex-end; }
+    .c-header-right img { display: block; }
+
+    /* Panel */
+    .c-panel {
+      flex: 1 1 0; min-height: 0;
+      background: #0f1129; 
+      /* box-shadow, not filter: a filter would trap the content in its own
+         layer, and the full-screen happyend canvas must sit between them */
+      box-shadow: 0 4px 2px rgba(0, 0, 0, 0.25);
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      padding: 32px 0;
+      box-sizing: border-box;
+    }
+    .c-title { position: relative; z-index: 2; padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; width: 100%; }
+    .c-title h1 { margin: 0; font-weight: 600; font-size: 32px; line-height: 32px; letter-spacing: 0.96px; color: #eeefff; text-shadow: 0 4px 0 rgba(0, 0, 0, 0.25); }
+    .c-title p { margin: 0; width: 252px; font-size: 18px; line-height: 18px; letter-spacing: 0.4px; color: #fff; }
+
+    .c-artwork { position: relative; flex: 1 1 0; min-height: 0; width: 100%; box-sizing: border-box; padding: 0 12px; }
+    /* happyend1.riv: full screen, above the panel background, behind the $5 */
+    #happyCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; pointer-events: none; }
+    .reward {
+      position: absolute; z-index: 2; left: calc(50% + 0.5px); top: calc(50% + 0.08px); transform: translate(-50%, -50%);
+      width: 128px; height: 71.111px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    }
+    .reward .cash { position: absolute; left: 27.11px; top: -2.49px; width: 73.781px; height: 56.051px; }
+    .reward .amount { position: relative; font-weight: 800; font-size: 40px; line-height: 44.674px; letter-spacing: -1.2px; color: #fff; white-space: nowrap; }
+
+    .c-actions { position: relative; z-index: 2; width: 100%; box-sizing: border-box; padding: 12px 24px 0; }
+    .collect-btn {
+      position: relative; width: 100%; height: 54px; border: none; border-radius: 8px;
+      background: #5e69ff; color: #fff; cursor: pointer;
+      font: 500 18px/16px "Kanit", system-ui, sans-serif; letter-spacing: 0.1px;
+      box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.08);
+      filter: drop-shadow(0 8px 0 rgba(94, 105, 255, 0.32));
+    }
+    .collect-btn:active { transform: translateY(2px); }
+    .collect-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .collect-btn:disabled { cursor: default; }
+
+    /* trial_currency.riv token trail, over everything */
+    #currencyCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 10; pointer-events: none; }
+    #currencyCanvas[hidden] { display: none; }
   </style>
 </head>
 <body>
   <div class="stage">
     <canvas id="riveCanvas"></canvas>
-    <label class="key-toggle">
-      <span>Use Key</span>
-      <input type="checkbox" id="useKey" role="switch" />
-      <span class="switch" aria-hidden="true"></span>
-    </label>
-    <div class="tap-pill" id="tapPill">Tap to Play</div>
+
+    <!-- Collect overlay: appears when the chest animation ends -->
+    <div class="collect" id="collect" hidden>
+      <canvas id="happyCanvas"></canvas>
+      <div class="c-header">
+        <div class="avatar-level">
+          <div class="level-pill">
+            <div class="lvl">
+              <span class="star"><img alt="" src="collect/vxp-star.svg" /></span>
+              <span class="lvl-text">Lvl 2</span>
+            </div>
+          </div>
+          <div class="avatar">
+            <span class="av-grid">
+              <span class="av-grid av-body">
+                <span class="av-grid av-soft">
+                  <span class="av-v" style="width:20.851px;height:13.639px;margin:19.99px 0 0 0px;--mp:-9.497px -25.304px"><img alt="" src="collect/av-1.svg" /></span>
+                  <span class="av-v" style="width:4.424px;height:3.4px;margin:26.43px 0 0 9.08px;--mp:-18.579px -31.743px;mix-blend-mode:soft-light"><img alt="" src="collect/av-2.svg" /></span>
+                  <span class="av-v" style="width:4.258px;height:1.481px;margin:26.74px 0 0 9.17px;--mp:-18.667px -32.056px;mix-blend-mode:soft-light"><img alt="" src="collect/av-3.svg" /></span>
+                  <span class="av-v" style="width:3.865px;height:4.956px;margin:16.88px 0 0 0.38px;--mp:-9.88px -22.193px;mix-blend-mode:soft-light"><img alt="" src="collect/av-4.svg" /></span>
+                  <span class="av-v" style="width:3.825px;height:4.99px;margin:16.86px 0 0 18.69px;--mp:-28.192px -22.172px;mix-blend-mode:soft-light"><img alt="" src="collect/av-5.svg" /></span>
+                  <span class="av-v" style="width:16.465px;height:25.856px;margin:1.46px 0 0 2.49px;--mp:-11.984px -6.769px;mix-blend-mode:soft-light"><img alt="" src="collect/av-6.svg" /></span>
+                  <span class="av-v" style="width:3.337px;height:1.522px;margin:19.99px 0 0 4.15px;--mp:-13.644px -25.304px;mix-blend-mode:soft-light"><img alt="" src="collect/av-7.svg" /></span>
+                  <span class="av-v" style="width:3.337px;height:1.522px;margin:19.99px 0 0 14.41px;--mp:-23.907px -25.304px;mix-blend-mode:soft-light"><img alt="" src="collect/av-7.svg" /></span>
+                  <span class="av-v" style="width:3.057px;height:1.619px;margin:22.8px 0 0 9.47px;--mp:-18.97px -28.114px;mix-blend-mode:soft-light"><img alt="" src="collect/av-8.svg" /></span>
+                  <span class="av-v" style="width:5.695px;height:0.776px;margin:22.68px 0 0 8.15px;--mp:-17.649px -27.997px;mix-blend-mode:soft-light"><span class="av-inset" style="inset:-29.77% -4.06%"><img alt="" src="collect/av-9.svg" /></span></span>
+                  <span class="av-v" style="width:3.289px;height:0.972px;margin:22.55px 0 0 9.36px;--mp:-18.852px -27.862px;mix-blend-mode:soft-light"><img alt="" src="collect/av-10.svg" /></span>
+                  <span class="av-v" style="width:2.07px;height:2.619px;margin:16.91px 0 0 4.89px;--mp:-14.383px -22.221px;mix-blend-mode:soft-light"><img alt="" src="collect/av-11.svg" /></span>
+                  <span class="av-v" style="width:2.184px;height:0.681px;margin:18.01px 0 0 14.56px;--mp:-24.056px -23.326px;mix-blend-mode:soft-light"><img alt="" src="collect/av-12.svg" /></span>
+                  <span class="av-v" style="width:1.747px;height:2.373px;margin:19.14px 0 0 10.13px;--mp:-19.623px -24.453px;mix-blend-mode:soft-light"><img alt="" src="collect/av-13.svg" /></span>
+                  <span class="av-v" style="width:1.271px;height:1.32px;margin:16.95px 0 0 4.41px;--mp:-13.91px -22.261px;mix-blend-mode:soft-light"><img alt="" src="collect/av-14.svg" /></span>
+                  <span class="av-v" style="width:10.432px;height:9.82px;margin:0px 0 0 3.15px;--mp:-12.65px -5.313px;mix-blend-mode:soft-light"><img alt="" src="collect/av-15.svg" /></span>
+                  <span class="av-v" style="width:6.047px;height:7.37px;margin:2.86px 0 0 16.15px;--mp:-25.648px -8.177px;mix-blend-mode:soft-light"><span class="av-inset" style="inset:-4.45% -5.42%"><img alt="" src="collect/av-16.svg" /></span></span>
+                </span>
+                <span class="av-v" style="width:19.527px;height:8.954px;margin:28.47px 0 0 3.72px;--mp:-10.196px -32.433px"><img alt="" src="collect/av-17.svg" /></span>
+                <span class="av-v" style="width:4.339px;height:3.949px;margin:27.02px 0 0 11.72px;--mp:-18.201px -30.985px"><img alt="" src="collect/av-18.svg" /></span>
+                <span class="av-v" style="width:4.339px;height:1.692px;margin:27.59px 0 0 11.72px;--mp:-18.201px -31.55px"><img alt="" src="collect/av-19.svg" /></span>
+                <span class="av-v" style="width:4.339px;height:5.077px;margin:17.43px 0 0 2.5px;--mp:-8.98px -21.395px"><img alt="" src="collect/av-20.svg" /></span>
+                <span class="av-v" style="width:3.797px;height:5.077px;margin:17.43px 0 0 21.49px;--mp:-27.965px -21.395px"><img alt="" src="collect/av-21.svg" /></span>
+                <span class="av-v" style="width:16.84px;height:25.537px;margin:2.61px 0 0 5.21px;--mp:-11.692px -6.578px"><img alt="" src="collect/av-22.svg" /></span>
+                <span class="av-v" style="width:3.254px;height:1.692px;margin:20.82px 0 0 6.84px;--mp:-13.319px -24.779px"><img alt="" src="collect/av-23.svg" /></span>
+                <span class="av-v" style="width:3.254px;height:1.692px;margin:20.82px 0 0 16.6px;--mp:-23.083px -24.779px"><img alt="" src="collect/av-23.svg" /></span>
+                <span class="av-v" style="width:2.712px;height:2.257px;margin:23.64px 0 0 12.27px;--mp:-18.744px -27.601px"><img alt="" src="collect/av-24.svg" /></span>
+                <span class="av-v" style="width:5.966px;height:0.564px;margin:23.64px 0 0 10.64px;--mp:-17.116px -27.601px"><span class="av-inset" style="inset:-40.96% -3.87%"><img alt="" src="collect/av-25.svg" /></span></span>
+                <span class="av-v" style="width:2.712px;height:1.128px;margin:23.07px 0 0 12.27px;--mp:-18.744px -27.037px"><img alt="" src="collect/av-26.svg" /></span>
+                <span class="av-v" style="width:1.085px;height:2.821px;margin:17.43px 0 0 7.93px;--mp:-14.404px -21.395px"><img alt="" src="collect/av-27.svg" /></span>
+                <span class="av-v" style="width:2.17px;height:0.564px;margin:19.13px 0 0 17.15px;--mp:-23.625px -23.089px"><img alt="" src="collect/av-28.svg" /></span>
+                <span class="av-v" style="width:1.627px;height:2.821px;margin:19.69px 0 0 12.81px;--mp:-19.286px -23.653px"><img alt="" src="collect/av-29.svg" /></span>
+                <span class="av-v" style="width:1.085px;height:1.692px;margin:17.43px 0 0 6.84px;--mp:-13.319px -21.395px"><img alt="" src="collect/av-30.svg" /></span>
+                <span class="av-v" style="width:27.786px;height:34.746px;margin:0px 0 0 0px;--mp:-6.478px -3.963px"><img alt="" src="collect/av-31.svg" /></span>
+                <span class="av-v" style="width:27.786px;height:34.746px;margin:0px 0 0 0px;--mp:-6.478px -3.963px"><img alt="" src="collect/av-maskgroup.svg" /></span>
+                <span class="av-v" style="width:18.779px;height:7.832px;margin:16.38px 0 0 3.92px;--mp:-10.396px -20.34px"><img alt="" src="collect/av-103.svg" /></span>
+                <span class="av-v" style="width:22.239px;height:9.026px;margin:15.74px 0 0 2.5px;--mp:-8.98px -19.702px"><img alt="" src="collect/av-108.svg" /></span>
+              </span>
+            </span>
+          </div>
+          <img class="progress-circle" alt="" src="collect/progress-circle.svg" />
+        </div>
+        <div class="c-header-mid">
+          <div class="pill balance" id="balancePill">
+            <span class="cash-stack"><span class="stack">
+              <img alt="" src="collect/cash-1.svg" style="margin:8.86px 0 0 0.12px" />
+              <img alt="" src="collect/cash-2.svg" style="margin:5.96px 0 0 0" />
+              <img alt="" src="collect/cash-3.svg" style="margin:2.93px 0 0 0.12px" />
+              <img alt="" src="collect/cash-4.svg" style="margin:0 0 0 0.38px" />
+            </span></span>
+            <span class="pill-value">$ 5.50</span>
+          </div>
+          <div class="pill raffle">
+            <span class="ticket-wrap"><img alt="" src="collect/ticket-small.svg" /></span>
+            <span class="pill-value">2</span>
+          </div>
+        </div>
+        <div class="c-header-right"><img alt="Notifications" src="collect/bell.svg" /></div>
+      </div>
+
+      <div class="c-panel">
+        <div class="c-title">
+          <h1>Awesome!</h1>
+          <p>Your reward is here</p>
+        </div>
+        <div class="c-artwork">
+          <div class="reward" id="reward">
+            <img class="cash" alt="" src="collect/reward-cash.svg" />
+            <span class="amount">$5.00</span>
+          </div>
+        </div>
+        <div class="c-actions">
+          <button class="collect-btn" id="collectBtn">Collect</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="currencyCanvas" hidden></canvas>
   </div>
 
   <script src="https://unpkg.com/@rive-app/canvas@2.47.1"></script>
   <script>
     const canvas = document.getElementById("riveCanvas");
 
-    const useKey = document.getElementById("useKey");
-    const tapPill = document.getElementById("tapPill");
-    let r = null;
+    // The chest only opens with the key
+    const KEY_UNLOCK = true;
 
-    // The key and the chest are both drawn on the canvas, so the first tap
-    // on it hides the pill
-    canvas.addEventListener("pointerdown", () => tapPill.classList.add("hidden"));
+    // Names the Rive runtime can report for the state machine's Exit state
+    const EXIT_STATES = ["exit", "exitstate"];
 
-    // Creates the Rive instance from scratch, with keyUnlock set from the toggle
-    function startRive() {
-      if (r) r.cleanup();
-      tapPill.classList.remove("hidden"); // fresh start: show the pill again
+    const r = new rive.Rive({
+      src: "./pinata_chest.riv",
+      canvas,
+      artboard: "Artboard",
+      stateMachines: "State Machine 3",
+      autoplay: true,
+      autoBind: true,
+      layout: new rive.Layout({
+        fit: rive.Fit.Contain,
+        alignment: rive.Alignment.TopCenter
+      }),
+      onLoad: () => {
+        r.resizeDrawingSurfaceToCanvas();
+        const keyUnlock = r.viewModelInstance?.boolean("keyUnlock");
+        if (keyUnlock) keyUnlock.value = KEY_UNLOCK;
+        else console.warn("keyUnlock not found on the view model");
+      },
+      onStateChange: (e) => {
+        const states = e.data || [];
+        console.log("Rive state:", states);
+        // Entered the Exit state: the animation is over
+        if (states.some((name) => EXIT_STATES.includes(String(name).toLowerCase()))) removeRive();
+      },
+      onLoadError: (err) => console.error("Rive load error:", err)
+    });
 
-      const inst = new rive.Rive({
-        src: "./pinata_chest.riv",
-        canvas,
-        artboard: "Artboard",
-        stateMachines: "State Machine 3",
-        autoplay: true,
-        autoBind: true,
-        layout: new rive.Layout({
-          fit: rive.Fit.Contain,
-          alignment: rive.Alignment.TopCenter
-        }),
-        onLoad: () => {
-          if (inst !== r) return; // a newer restart replaced this one
-          inst.resizeDrawingSurfaceToCanvas();
-          const keyUnlock = inst.viewModelInstance?.boolean("keyUnlock");
-          if (keyUnlock) keyUnlock.value = useKey.checked;
-          else console.warn("keyUnlock not found on the view model");
-        },
-        onLoadError: (err) => console.error("Rive load error:", err)
-      });
-
-      r = inst;
+    // Animation finished: fade the canvas out, then remove it and free Rive
+    let removed = false;
+    function removeRive() {
+      if (removed) return;
+      removed = true;
+      canvas.style.transition = "opacity 0.3s";
+      canvas.style.opacity = "0";
+      setTimeout(() => {
+        r.cleanup();
+        canvas.remove();
+      }, 300);
+      showCollect();
     }
 
-    startRive();
 
-    // "Use Key" toggle: restart the file with the new keyUnlock value
-    useKey.addEventListener("change", startRive);
+    // =====================================================
+    // COLLECT OVERLAY
+    // =====================================================
 
-    window.addEventListener("resize", () => r?.resizeDrawingSurfaceToCanvas());
+    const collect = document.getElementById("collect");
+    const happyCanvas = document.getElementById("happyCanvas");
+    const currencyCanvas = document.getElementById("currencyCanvas");
+    const collectBtn = document.getElementById("collectBtn");
+    const reward = document.getElementById("reward");
+    const balancePill = document.getElementById("balancePill");
+    let happy = null;
+    let currency = null;
+
+    // Shifts the full-screen happyend canvas down so its centre sits right
+    // behind the dollars (the $5 is below the screen centre)
+    function centerHappyOnReward() {
+      const box = collect.getBoundingClientRect();
+      const b = reward.getBoundingClientRect();
+      const dy = (b.top + b.height / 2) - (box.top + box.height / 2);
+      happyCanvas.style.top = dy + "px";
+    }
+
+    function showCollect() {
+      collect.hidden = false;
+      centerHappyOnReward();
+      requestAnimationFrame(() => requestAnimationFrame(() => collect.classList.add("show")));
+
+      // happyend1 is a plain .riv file without an extension
+      happy = new rive.Rive({
+        src: "./happyend1",
+        canvas: happyCanvas,
+        stateMachines: "State Machine 1",
+        autoplay: true,
+        autoBind: true,
+        // Cover: fills the whole screen edge to edge, no empty bands
+        layout: new rive.Layout({ fit: rive.Fit.Cover, alignment: rive.Alignment.Center }),
+        onLoad: () => happy.resizeDrawingSurfaceToCanvas(),
+        onLoadError: (err) => console.error("happyend1 load error:", err)
+      });
+    }
+
+    // Collect: tokens fly from the $5 to the balance in the header
+    const CURRENCY_ANIMATION_TYPE = 1;
+    const CURRENCY_TOKEN = 1;        // particleType
+    const CURRENCY_MS = 3500;        // the trail is removed after this long
+
+    collectBtn.addEventListener("click", () => {
+      if (currency) return;
+      collectBtn.disabled = true;
+      currencyCanvas.hidden = false;
+
+      currency = new rive.Rive({
+        src: "./trial_currency.riv",
+        canvas: currencyCanvas,
+        stateMachines: "State Machine 1",
+        autoplay: true,
+        // Fit.Layout: the artboard takes the canvas size, so artboard
+        // units are CSS pixels of the stage
+        layout: new rive.Layout({ fit: rive.Fit.Layout, layoutScaleFactor: 1, alignment: rive.Alignment.Center }),
+        // trial_currency.riv references its images; they sit next to it
+        assetLoader: (asset, bytes) => {
+          if (!asset.isImage || bytes.length > 0) return false;
+          fetch("./" + asset.uniqueFilename)
+            .then((res) => { if (!res.ok) throw new Error(res.status + " " + asset.uniqueFilename); return res.arrayBuffer(); })
+            .then((buf) => rive.decodeImage(new Uint8Array(buf)))
+            .then((image) => { asset.setRenderImage(image); image.unref(); })
+            .catch((e) => console.error("Asset load failed:", e));
+          return true;
+        },
+        onLoad: () => {
+          currency.resizeDrawingSurfaceToCanvas();
+          const vm = currency.viewModelByName("CurrencyVM");
+          if (!vm) { console.warn("CurrencyVM not found"); return; }
+          const vmi = vm.defaultInstance() || vm.instance();
+          currency.bindViewModelInstance(vmi);
+
+          const stageRect = currencyCanvas.getBoundingClientRect();
+          const center = (el) => {
+            const b = el.getBoundingClientRect();
+            return { x: b.left + b.width / 2 - stageRect.left, y: b.top + b.height / 2 - stageRect.top };
+          };
+          const from = center(reward);
+          const to = center(balancePill);
+          const set = (name, value) => {
+            const prop = vmi.number(name);
+            if (prop) prop.value = value;
+            else console.warn(`${name} not found on CurrencyVM`);
+          };
+          set("animationType", CURRENCY_ANIMATION_TYPE);
+          set("particleType", CURRENCY_TOKEN);
+          set("startX", from.x);
+          set("startY", from.y);
+          set("endX", to.x);
+          set("endY", to.y);
+
+          vmi.trigger("confettiTrigger")?.trigger();
+
+          setTimeout(() => {
+            currency.cleanup();
+            currencyCanvas.hidden = true;
+          }, CURRENCY_MS);
+        },
+        onLoadError: (err) => console.error("trial_currency load error:", err)
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      if (!removed) r.resizeDrawingSurfaceToCanvas();
+      if (!collect.hidden) centerHappyOnReward();
+      happy?.resizeDrawingSurfaceToCanvas();
+    });
   </script>
 </body>
 </html>
