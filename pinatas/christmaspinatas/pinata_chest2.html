@@ -277,9 +277,6 @@
     // The chest only opens with the key
     const KEY_UNLOCK = true;
 
-    // Names the Rive runtime can report for the state machine's Exit state
-    const EXIT_STATES = ["exit", "exitstate"];
-
     const r = new rive.Rive({
       src: "./pinata_chest2.riv",
       canvas,
@@ -297,28 +294,9 @@
         if (keyUnlock) keyUnlock.value = KEY_UNLOCK;
         else console.warn("keyUnlock not found on the view model");
       },
-      onStateChange: (e) => {
-        const states = e.data || [];
-        console.log("Rive state:", states);
-        // Entered the Exit state: the animation is over
-        if (states.some((name) => EXIT_STATES.includes(String(name).toLowerCase()))) removeRive();
-      },
+      onStateChange: (e) => console.log("Rive state:", e.data || []),
       onLoadError: (err) => console.error("Rive load error:", err)
     });
-
-    // Animation finished: fade the canvas out, then remove it and free Rive
-    let removed = false;
-    function removeRive() {
-      if (removed) return;
-      removed = true;
-      canvas.style.transition = "opacity 0.3s";
-      canvas.style.opacity = "0";
-      setTimeout(() => {
-        r.cleanup();
-        canvas.remove();
-      }, 300);
-      showCollect();
-    }
 
 
     // =====================================================
@@ -466,7 +444,7 @@
     });
 
     window.addEventListener("resize", () => {
-      if (!removed) r.resizeDrawingSurfaceToCanvas();
+      r.resizeDrawingSurfaceToCanvas();
       if (!collect.hidden) centerHappyOnReward();
       if (happy) {
         happy.resizeDrawingSurfaceToCanvas();
