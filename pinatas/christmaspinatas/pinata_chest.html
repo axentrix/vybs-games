@@ -141,7 +141,12 @@
 
     .c-artwork { position: relative; flex: 1 1 0; min-height: 0; width: 100%; box-sizing: border-box; padding: 0 12px; }
     /* happyend1.riv: full screen, above the panel background, behind the $5 */
-    #happyCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; pointer-events: none; }
+    #happyCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; pointer-events: none;
+      /* The Rive artboard has hard edges; fade them out softly. --hx/--hy are
+         half the artboard's drawn size, set in happyLayout() */
+      -webkit-mask-image: radial-gradient(ellipse var(--hx, 50%) var(--hy, 50%) at 50% 50%, #000 60%, transparent 100%);
+              mask-image: radial-gradient(ellipse var(--hx, 50%) var(--hy, 50%) at 50% 50%, #000 60%, transparent 100%);
+    }
     .reward {
       position: absolute; z-index: 2; left: calc(50% + 0.5px); top: calc(50% + 0.08px); transform: translate(-50%, -50%);
       width: 128px; height: 71.111px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
@@ -338,6 +343,33 @@
       happyCanvas.style.top = dy + "px";
     }
 
+    // happyend size relative to the full-screen fit. The canvas stays full
+    // screen and the animation is drawn smaller inside it (layout bounds),
+    // so anything reaching past that area is still drawn, not cut off.
+    const HAPPY_SCALE = 0.5;
+
+    function happyLayout() {
+      const w = happyCanvas.width;   // drawing-surface pixels
+      const h = happyCanvas.height;
+      const dx = (w * (1 - HAPPY_SCALE)) / 2;
+      const dy = (h * (1 - HAPPY_SCALE)) / 2;
+
+      // Fade the edges of the artboard as it is actually drawn (Cover keeps
+      // its proportions, so it is not squeezed into the tall screen shape)
+      const aw = happy?.artboardWidth, ah = happy?.artboardHeight;
+      if (aw && ah) {
+        const cssPerPx = happyCanvas.clientWidth / w;
+        const s = Math.max((w - 2 * dx) / aw, (h - 2 * dy) / ah);
+        happyCanvas.style.setProperty("--hx", (aw * s * cssPerPx) / 2 + "px");
+        happyCanvas.style.setProperty("--hy", (ah * s * cssPerPx) / 2 + "px");
+      }
+      return new rive.Layout({
+        fit: rive.Fit.Cover,
+        alignment: rive.Alignment.Center,
+        minX: dx, minY: dy, maxX: w - dx, maxY: h - dy
+      });
+    }
+
     function showCollect() {
       collect.hidden = false;
       centerHappyOnReward();
@@ -350,9 +382,11 @@
         stateMachines: "State Machine 1",
         autoplay: true,
         autoBind: true,
-        // Cover: fills the whole screen edge to edge, no empty bands
-        layout: new rive.Layout({ fit: rive.Fit.Cover, alignment: rive.Alignment.Center }),
-        onLoad: () => happy.resizeDrawingSurfaceToCanvas(),
+        layout: happyLayout(),
+        onLoad: () => {
+          happy.resizeDrawingSurfaceToCanvas();
+          happy.layout = happyLayout();
+        },
         onLoadError: (err) => console.error("happyend1 load error:", err)
       });
     }
@@ -361,6 +395,9 @@
     const CURRENCY_ANIMATION_TYPE = 1;
     const CURRENCY_TOKEN = 1;        // particleType
     const CURRENCY_MS = 3500;        // the trail is removed after this long
+    // Size of the tokens / confetti relative to the Rive file. The canvas
+    // stays full screen and the artboard grows to fill it, so nothing is cut.
+    const CURRENCY_SCALE = 0.7;
 
     collectBtn.addEventListener("click", () => {
       if (currency) return;
@@ -372,9 +409,9 @@
         canvas: currencyCanvas,
         stateMachines: "State Machine 1",
         autoplay: true,
-        // Fit.Layout: the artboard takes the canvas size, so artboard
-        // units are CSS pixels of the stage
-        layout: new rive.Layout({ fit: rive.Fit.Layout, layoutScaleFactor: 1, alignment: rive.Alignment.Center }),
+        // Fit.Layout: the artboard takes the canvas size; layoutScaleFactor
+        // draws its content smaller while the artboard still spans the screen
+        layout: new rive.Layout({ fit: rive.Fit.Layout, layoutScaleFactor: CURRENCY_SCALE, alignment: rive.Alignment.Center }),
         // trial_currency.riv references its images; they sit next to it
         assetLoader: (asset, bytes) => {
           if (!asset.isImage || bytes.length > 0) return false;
@@ -395,7 +432,13 @@
           const stageRect = currencyCanvas.getBoundingClientRect();
           const center = (el) => {
             const b = el.getBoundingClientRect();
-            return { x: b.left + b.width / 2 - stageRect.left, y: b.top + b.height / 2 - stageRect.top };
+            // CSS pixels -> artboard units (they differ by CURRENCY_SCALE)
+            const kx = currency.artboardWidth / stageRect.width;
+            const ky = currency.artboardHeight / stageRect.height;
+            return {
+              x: (b.left + b.width / 2 - stageRect.left) * kx,
+              y: (b.top + b.height / 2 - stageRect.top) * ky
+            };
           };
           const from = center(reward);
           const to = center(balancePill);
@@ -425,7 +468,10 @@
     window.addEventListener("resize", () => {
       if (!removed) r.resizeDrawingSurfaceToCanvas();
       if (!collect.hidden) centerHappyOnReward();
-      happy?.resizeDrawingSurfaceToCanvas();
+      if (happy) {
+        happy.resizeDrawingSurfaceToCanvas();
+        happy.layout = happyLayout();
+      }
     });
   </script>
 </body>
